@@ -18,27 +18,27 @@ struct SongInfoSection: View {
     @State private var editedTimeSignature: String = "4/4"
 
     let keys = [
-        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-        "Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m", "Am", "A#m", "Bm"
+        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
     ]
     let tempoOptions = Array(stride(from: 40, through: 200, by: 5))
     let timeSignatures = ["4/4", "3/4", "6/8", "2/4", "5/4", "7/8", "12/8"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("곡 정보")
-                .font(.headline)
-
             if isEditing {
+                // 편집 모드: 제목만
+                Text("곡 정보")
+                    .font(.headline)
+
                 // 편집 모드
                 VStack(spacing: 16) {
                     HStack(spacing: 0) {
                         VStack(spacing: 4) {
-                            Text("키")
+                            Text("코드")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
 
-                            Picker("키", selection: $editedKey) {
+                            Picker("코드", selection: $editedKey) {
                                 ForEach(keys, id: \.self) { keyOption in
                                     Text(keyOption).tag(keyOption)
                                 }
@@ -85,40 +85,43 @@ struct SongInfoSection: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             } else {
-                // 보기 모드
-                HStack(spacing: 24) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("키")
+                // 보기 모드: 한 줄로 배치
+                HStack(spacing: 12) {
+                    Text("곡 정보")
+                        .font(.headline)
+
+                    Spacer()
+
+                    // 코드
+                    HStack(spacing: 4) {
+                        Text("코드")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(song.key ?? "-")
-                            .font(.title2)
+                            .font(.callout)
                             .fontWeight(.semibold)
                     }
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    // 템포
+                    HStack(spacing: 4) {
                         Text("템포")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text(song.tempo != nil ? "\(song.tempo!) BPM" : "-")
-                            .font(.title2)
+                        Text(song.tempo != nil ? "\(song.tempo!)" : "-")
+                            .font(.callout)
                             .fontWeight(.semibold)
                     }
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    // 박자
+                    HStack(spacing: 4) {
                         Text("박자")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(song.timeSignature ?? "-")
-                            .font(.title2)
+                            .font(.callout)
                             .fontWeight(.semibold)
                     }
-
-                    Spacer()
                 }
-                .padding()
-                .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
         .onAppear {

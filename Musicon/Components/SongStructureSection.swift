@@ -11,9 +11,11 @@ import SwiftData
 struct SongStructureSection: View {
     @Environment(\.modelContext) private var modelContext
     let song: Song
+    @Binding var isEditing: Bool
 
     @State private var showingAddSection = false
     @State private var editingSection: SongSection?
+    @State private var deletingSection: SongSection?
 
     var sortedSections: [SongSection] {
         song.sections.sorted { $0.order < $1.order }
@@ -21,8 +23,33 @@ struct SongStructureSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("곡 구조")
-                .font(.headline)
+            // 헤더: 제목 + 빠른 추가 버튼
+            HStack(spacing: 20) {
+                Text("구조")
+                    .font(.headline)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(SectionType.allCases.filter { $0 != .custom }) { type in
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                    addQuickSection(type: type)
+                                }
+                            } label: {
+                                Text(type.rawValue)
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.blue)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.blue.opacity(0.1))
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
 
             if sortedSections.isEmpty {
                 // 빈 상태
@@ -43,83 +70,47 @@ struct SongStructureSection: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 32)
             } else {
-                // 섹션 목록
-                VStack(spacing: 8) {
+                // 섹션 플로우 (자동 줄바꿈)
+                FlowLayout(spacing: 6) {
                     ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
-                        HStack {
-                            Text("\(index + 1).")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 30, alignment: .leading)
-
+                        HStack(spacing: 3) {
                             Button {
-                                editingSection = section
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    editingSection = section
+                                }
                             } label: {
-                                HStack {
+                                HStack(spacing: 4) {
                                     Text(section.displayLabel)
-                                        .font(.body)
-                                        .fontWeight(.medium)
+                                        .font(.callout)
+                                        .fontWeight(.semibold)
                                         .foregroundStyle(.primary)
 
-                                    Image(systemName: "pencil.circle.fill")
-                                        .font(.title3)
-                                        .foregroundStyle(.secondary)
+                                    if isEditing {
+                                        Button {
+                                            deletingSection = section
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.caption2)
+                                                .foregroundStyle(.red)
+                                        }
+                                    }
                                 }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color(.systemGray6))
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
                             }
                             .buttonStyle(.plain)
 
-                            Spacer()
-
-                            Button {
-                                deleteSection(section)
-                            } label: {
-                                Image(systemName: "trash")
-                                    .foregroundStyle(.red)
-                            }
-                        }
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    .onMove { from, to in
-                        moveSection(from: from, to: to)
-                    }
-                }
-            }
-
-            // 빠른 섹션 추가 버튼들
-            VStack(spacing: 12) {
-                Text("빠른 추가")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible()),
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: 10) {
-                    ForEach(SectionType.allCases.filter { $0 != .custom }) { type in
-                        Button {
-                            addQuickSection(type: type)
-                        } label: {
-                            VStack(spacing: 4) {
-                                Text(type.rawValue)
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
-                                Text(type.displayName)
-                                    .font(.caption2)
+                            if index < sortedSections.count - 1 {
+                                Image(systemName: "arrow.right")
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(Color(.systemGray6))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
-                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.vertical, 4)
             }
         }
         .sheet(isPresented: $showingAddSection) {
@@ -127,6 +118,22 @@ struct SongStructureSection: View {
         }
         .sheet(item: $editingSection) { section in
             EditSectionLabelView(section: section)
+        }
+        .alert("섹션 삭제", isPresented: Binding(
+            get: { deletingSection != nil },
+            set: { if !$0 { deletingSection = nil } }
+        )) {
+            Button("취소", role: .cancel) {
+                deletingSection = nil
+            }
+            Button("삭제", role: .destructive) {
+                if let section = deletingSection {
+                    deleteSection(section)
+                    deletingSection = nil
+                }
+            }
+        } message: {
+            Text("이 섹션을 삭제하시겠습니까?")
         }
     }
 
@@ -180,6 +187,7 @@ struct EditSectionLabelView: View {
 
     let section: SongSection
     @State private var customLabel: String = ""
+    @State private var showingDeleteAlert = false
 
     var body: some View {
         NavigationStack {
@@ -210,6 +218,17 @@ struct EditSectionLabelView: View {
                 } header: {
                     Text("미리보기")
                 }
+
+                Section {
+                    Button(role: .destructive) {
+                        showingDeleteAlert = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "trash")
+                            Text("섹션 삭제")
+                        }
+                    }
+                }
             }
             .navigationTitle("섹션 수정")
             .navigationBarTitleDisplayMode(.inline)
@@ -225,6 +244,14 @@ struct EditSectionLabelView: View {
                         saveLabel()
                     }
                 }
+            }
+            .alert("섹션 삭제", isPresented: $showingDeleteAlert) {
+                Button("취소", role: .cancel) { }
+                Button("삭제", role: .destructive) {
+                    deleteSection()
+                }
+            } message: {
+                Text("이 섹션을 삭제하시겠습니까?")
             }
             .onAppear {
                 customLabel = section.customLabel ?? ""
@@ -247,10 +274,33 @@ struct EditSectionLabelView: View {
         try? modelContext.save()
         dismiss()
     }
+
+    private func deleteSection() {
+        guard let song = section.song else {
+            dismiss()
+            return
+        }
+
+        if let index = song.sections.firstIndex(where: { $0.id == section.id }) {
+            song.sections.remove(at: index)
+            modelContext.delete(section)
+
+            // 순서 재정렬
+            let sortedSections = song.sections.sorted { $0.order < $1.order }
+            for (index, section) in sortedSections.enumerated() {
+                section.order = index
+            }
+
+            song.updatedAt = Date()
+            try? modelContext.save()
+        }
+
+        dismiss()
+    }
 }
 
 #Preview {
-    SongStructureSection(song: Song(title: "Test"))
+    SongStructureSection(song: Song(title: "Test"), isEditing: .constant(false))
         .padding()
         .modelContainer(for: Song.self, inMemory: true)
 }

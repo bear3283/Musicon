@@ -13,6 +13,7 @@ struct SetlistListView: View {
     @Query(sort: \Setlist.createdAt, order: .reverse) private var setlists: [Setlist]
     @State private var searchText = ""
     @State private var showingCreateSheet = false
+    @State private var setlistToDelete: Setlist?
 
     var filteredSetlists: [Setlist] {
         if searchText.isEmpty {
@@ -37,9 +38,17 @@ struct SetlistListView: View {
                             NavigationLink(value: setlist) {
                                 SetlistRowView(setlist: setlist)
                             }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    setlistToDelete = setlist
+                                } label: {
+                                    Label("삭제", systemImage: "trash")
+                                }
+                            }
+                            .transition(.opacity.combined(with: .move(edge: .trailing)))
                         }
-                        .onDelete(perform: deleteSetlists)
                     }
+                    .animation(.easeInOut(duration: 0.3), value: filteredSetlists.count)
                 }
             }
             .navigationTitle("콘티 목록")
@@ -62,13 +71,24 @@ struct SetlistListView: View {
             .sheet(isPresented: $showingCreateSheet) {
                 CreateSetlistView()
             }
-        }
-    }
-
-    private func deleteSetlists(at offsets: IndexSet) {
-        for index in offsets {
-            let setlist = filteredSetlists[index]
-            modelContext.delete(setlist)
+            .alert("콘티 삭제", isPresented: Binding(
+                get: { setlistToDelete != nil },
+                set: { if !$0 { setlistToDelete = nil } }
+            )) {
+                Button("취소", role: .cancel) {
+                    setlistToDelete = nil
+                }
+                Button("삭제", role: .destructive) {
+                    if let setlist = setlistToDelete {
+                        modelContext.delete(setlist)
+                        setlistToDelete = nil
+                    }
+                }
+            } message: {
+                if let setlist = setlistToDelete {
+                    Text("'\(setlist.title)'을(를) 삭제하시겠습니까?\n포함된 \(setlist.items.count)곡의 정보도 함께 삭제됩니다.")
+                }
+            }
         }
     }
 }
@@ -108,6 +128,9 @@ struct CreateSetlistView: View {
     @State private var performanceDate = Date()
     @State private var notes = ""
 
+    @State private var showingValidationError = false
+    @State private var validationErrorMessage = ""
+
     var body: some View {
         NavigationStack {
             Form {
@@ -139,17 +162,30 @@ struct CreateSetlistView: View {
                     Button("추가") {
                         addSetlist()
                     }
-                    .disabled(title.isEmpty)
+                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
+            }
+            .alert("유효성 검사 오류", isPresented: $showingValidationError) {
+                Button("확인", role: .cancel) {}
+            } message: {
+                Text(validationErrorMessage)
             }
         }
     }
 
     private func addSetlist() {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedTitle.isEmpty else {
+            validationErrorMessage = "제목을 입력해주세요"
+            showingValidationError = true
+            return
+        }
+
         let setlist = Setlist(
-            title: title,
+            title: trimmedTitle,
             performanceDate: performanceDate,
-            notes: notes.isEmpty ? nil : notes
+            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes
         )
 
         modelContext.insert(setlist)

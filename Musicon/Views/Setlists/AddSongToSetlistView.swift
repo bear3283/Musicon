@@ -16,7 +16,7 @@ struct AddSongToSetlistView: View {
 
     @Query(sort: \Song.title) private var allSongs: [Song]
     @State private var searchText = ""
-    @State private var selectedSongs: Set<Song.ID> = []
+    @State private var selectedSongs: [Song.ID] = []
 
     var filteredSongs: [Song] {
         let existingSongIDs = Set(setlist.items.map { $0.song.id })
@@ -47,10 +47,10 @@ struct AddSongToSetlistView: View {
                     List {
                         ForEach(filteredSongs) { song in
                             Button {
-                                if selectedSongs.contains(song.id) {
-                                    selectedSongs.remove(song.id)
+                                if let index = selectedSongs.firstIndex(of: song.id) {
+                                    selectedSongs.remove(at: index)
                                 } else {
-                                    selectedSongs.insert(song.id)
+                                    selectedSongs.append(song.id)
                                 }
                             } label: {
                                 HStack {
@@ -81,9 +81,15 @@ struct AddSongToSetlistView: View {
 
                                     Spacer()
 
-                                    if selectedSongs.contains(song.id) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(.blue)
+                                    if let index = selectedSongs.firstIndex(of: song.id) {
+                                        ZStack {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(.blue)
+                                            Text("\(index + 1)")
+                                                .font(.caption2)
+                                                .fontWeight(.bold)
+                                                .foregroundStyle(.white)
+                                        }
                                     } else {
                                         Image(systemName: "circle")
                                             .foregroundStyle(.secondary)
@@ -116,14 +122,15 @@ struct AddSongToSetlistView: View {
     }
 
     private func addSongs() {
-        let songsToAdd = allSongs.filter { selectedSongs.contains($0.id) }
+        // 선택한 순서대로 곡 추가
+        for (index, songID) in selectedSongs.enumerated() {
+            if let song = allSongs.first(where: { $0.id == songID }) {
+                let item = SetlistItem(order: setlist.items.count + index, song: song)
+                item.setlist = setlist
 
-        for (index, song) in songsToAdd.enumerated() {
-            let item = SetlistItem(order: setlist.items.count + index, song: song)
-            item.setlist = setlist
-
-            setlist.items.append(item)
-            modelContext.insert(item)
+                setlist.items.append(item)
+                modelContext.insert(item)
+            }
         }
 
         setlist.updatedAt = Date()

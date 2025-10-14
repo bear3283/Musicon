@@ -10,7 +10,7 @@ import Foundation
 enum SectionType: String, Codable, CaseIterable, Identifiable {
     case verse = "V"
     case chorus = "C"
-    case preChorus = "Pre"
+    case preChorus = "P"
     case bridge = "B"
     case intro = "I"
     case outro = "O"

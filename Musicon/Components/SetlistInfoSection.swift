@@ -25,6 +25,21 @@ struct SetlistInfoSection: View {
             if isEditing {
                 // 편집 모드
                 VStack(spacing: 16) {
+                    HStack(spacing: 12) {
+                        Text("공연 날짜")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Text("/")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        DatePicker("", selection: $editedDate, displayedComponents: [.date])
+                            .datePickerStyle(.compact)
+                            .labelsHidden()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
                     VStack(alignment: .leading, spacing: 8) {
                         Text("제목")
                             .font(.caption)
@@ -34,20 +49,12 @@ struct SetlistInfoSection: View {
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("공연 날짜")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        DatePicker("", selection: $editedDate, displayedComponents: [.date])
-                            .datePickerStyle(.compact)
-                            .labelsHidden()
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
                         Text("메모")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         TextEditor(text: $editedNotes)
                             .frame(height: 100)
+                            .multilineTextAlignment(.leading)
                             .padding(8)
                             .background(Color(.systemGray6))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -94,6 +101,8 @@ struct SetlistInfoSection: View {
                                 .foregroundStyle(.secondary)
                             Text(notes)
                                 .font(.body)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                 }

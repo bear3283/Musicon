@@ -13,6 +13,7 @@ struct SongListView: View {
     @Query(sort: \Song.createdAt, order: .reverse) private var songs: [Song]
     @State private var searchText = ""
     @State private var showingCreateSheet = false
+    @State private var songToDelete: Song?
 
     var filteredSongs: [Song] {
         if searchText.isEmpty {
@@ -37,9 +38,17 @@ struct SongListView: View {
                             NavigationLink(value: song) {
                                 SongRowView(song: song)
                             }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    songToDelete = song
+                                } label: {
+                                    Label("삭제", systemImage: "trash")
+                                }
+                            }
+                            .transition(.opacity.combined(with: .move(edge: .trailing)))
                         }
-                        .onDelete(perform: deleteSongs)
                     }
+                    .animation(.easeInOut(duration: 0.3), value: filteredSongs.count)
                 }
             }
             .navigationTitle("곡 목록")
@@ -59,13 +68,24 @@ struct SongListView: View {
             .sheet(isPresented: $showingCreateSheet) {
                 CreateSongView()
             }
-        }
-    }
-
-    private func deleteSongs(at offsets: IndexSet) {
-        for index in offsets {
-            let song = filteredSongs[index]
-            modelContext.delete(song)
+            .alert("곡 삭제", isPresented: Binding(
+                get: { songToDelete != nil },
+                set: { if !$0 { songToDelete = nil } }
+            )) {
+                Button("취소", role: .cancel) {
+                    songToDelete = nil
+                }
+                Button("삭제", role: .destructive) {
+                    if let song = songToDelete {
+                        modelContext.delete(song)
+                        songToDelete = nil
+                    }
+                }
+            } message: {
+                if let song = songToDelete {
+                    Text("'\(song.title)'을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.")
+                }
+            }
         }
     }
 }
@@ -96,6 +116,15 @@ struct SongRowView: View {
                         .background(.green.opacity(0.2))
                         .clipShape(Capsule())
                 }
+
+                if let timeSignature = song.timeSignature {
+                    Text(timeSignature)
+                        .font(.caption)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.orange.opacity(0.2))
+                        .clipShape(Capsule())
+                }
             }
         }
         .padding(.vertical, 4)
@@ -111,9 +140,11 @@ struct CreateSongView: View {
     @State private var tempo = 120
     @State private var timeSignature = "4/4"
 
+    @State private var showingValidationError = false
+    @State private var validationErrorMessage = ""
+
     let keys = [
-        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-        "Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m", "Am", "A#m", "Bm"
+        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
     ]
     let tempoOptions = Array(stride(from: 40, through: 200, by: 5))
     let timeSignatures = ["4/4", "3/4", "6/8", "2/4", "5/4", "7/8", "12/8"]
@@ -128,11 +159,11 @@ struct CreateSongView: View {
                 Section("음악 정보") {
                     HStack(spacing: 0) {
                         VStack(spacing: 4) {
-                            Text("키")
+                            Text("코드")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
 
-                            Picker("키", selection: $key) {
+                            Picker("코드", selection: $key) {
                                 ForEach(keys, id: \.self) { keyOption in
                                     Text(keyOption).tag(keyOption)
                                 }
@@ -188,22 +219,50 @@ struct CreateSongView: View {
                     Button("추가") {
                         addSong()
                     }
-                    .disabled(title.isEmpty)
+                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
+            }
+            .alert("유효성 검사 오류", isPresented: $showingValidationError) {
+                Button("확인", role: .cancel) {}
+            } message: {
+                Text(validationErrorMessage)
             }
         }
     }
 
     private func addSong() {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedTitle.isEmpty else {
+            validationErrorMessage = "제목을 입력해주세요"
+            showingValidationError = true
+            return
+        }
+
+        guard tempo > 0 && tempo <= 300 else {
+            validationErrorMessage = "올바른 BPM을 입력해주세요 (1-300)"
+            showingValidationError = true
+            return
+        }
+
         let song = Song(
-            title: title,
+            title: trimmedTitle,
             tempo: tempo,
             key: key,
             timeSignature: timeSignature
         )
 
-        modelContext.insert(song)
-        dismiss()
+        do {
+            try song.validate()
+            modelContext.insert(song)
+            dismiss()
+        } catch let error as ValidationError {
+            validationErrorMessage = error.errorDescription ?? "알 수 없는 오류가 발생했습니다"
+            showingValidationError = true
+        } catch {
+            validationErrorMessage = "곡 추가에 실패했습니다"
+            showingValidationError = true
+        }
     }
 }
 

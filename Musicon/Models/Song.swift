@@ -20,6 +20,7 @@ final class Song {
     var tempo: Int?
     var key: String?
     var timeSignature: String?
+    var notes: String?
 
     // 악보 이미지
     @Attribute(.externalStorage)

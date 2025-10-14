@@ -10,30 +10,24 @@ import SwiftData
 
 struct SongDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let song: Song
 
     @State private var isEditing = false
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // 곡 정보 섹션
-                SongInfoSection(song: song, isEditing: $isEditing)
-
-                Divider()
-
-                // 곡 구조 섹션
-                SongStructureSection(song: song)
-
-                Divider()
-
-                // 악보 섹션
-                SheetMusicSection(song: song)
+            if horizontalSizeClass == .regular {
+                // iPad: 2단 레이아웃
+                iPadLayout
+            } else {
+                // iPhone: 세로 레이아웃
+                iPhoneLayout
             }
-            .padding()
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle(song.title)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .inline : .large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(isEditing ? "완료" : "편집") {
@@ -41,6 +35,53 @@ struct SongDetailView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var iPhoneLayout: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            // 곡 정보 섹션
+            SongInfoSection(song: song, isEditing: $isEditing)
+
+            Divider()
+
+            // 곡 구조 섹션
+            SongStructureSection(song: song, isEditing: $isEditing)
+
+            Divider()
+
+            // 악보 섹션
+            SheetMusicSection(song: song)
+        }
+        .padding()
+    }
+
+    @ViewBuilder
+    private var iPadLayout: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            // 곡 정보 섹션 (전체 너비)
+            SongInfoSection(song: song, isEditing: $isEditing)
+
+            Divider()
+
+            // 곡 구조 + 악보 (2단)
+            HStack(alignment: .top, spacing: 24) {
+                // 왼쪽: 곡 구조
+                VStack(alignment: .leading, spacing: 12) {
+                    SongStructureSection(song: song, isEditing: $isEditing)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Divider()
+
+                // 오른쪽: 악보
+                VStack(alignment: .leading, spacing: 12) {
+                    SheetMusicSection(song: song)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding()
     }
 }
 
