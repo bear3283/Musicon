@@ -15,27 +15,35 @@ struct SetlistDetailView: View {
 
     @State private var isEditing = false
     @State private var showingAddSong = false
+    @State private var showingSheetMusicView = false
+    @State private var showingShareSheet = false
     @State private var currentSongIndex = 0
     @State private var showPageIndicator = true
     @State private var hideTask: Task<Void, Never>?
+    @State private var pdfURL: URL?
 
     var sortedItems: [SetlistItem] {
         setlist.items.sorted { $0.order < $1.order }
     }
 
+    // 악보가 있는지 확인
+    var hasSheetMusic: Bool {
+        sortedItems.contains { !$0.sheetMusicImages.isEmpty }
+    }
+
     var emptyStateView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Spacing.md) {
             Image(systemName: "music.note.list")
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 60, weight: .light))
+                .foregroundStyle(Color.accentGold.opacity(0.6))
 
             Text("곡이 없습니다")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(.titleMedium)
+                .foregroundStyle(Color.textPrimary)
 
             Text("곡을 추가하여 콘티를 구성하세요")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+                .font(.bodyMedium)
+                .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -52,10 +60,12 @@ struct SetlistDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(.blue.opacity(0.1))
-            .foregroundStyle(.blue)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(Color.accentGold.opacity(0.1))
+            .foregroundStyle(Color.accentGold)
+            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
         }
+        .accessibilityLabel("곡 추가")
+        .accessibilityHint("콘티에 곡을 추가합니다")
     }
 
     var body: some View {
@@ -204,17 +214,56 @@ struct SetlistDetailView: View {
         }
         .navigationTitle(setlist.title)
         .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .inline : .large)
+        .tint(Color.accentGold)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button(isEditing ? "완료" : "편집") {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        isEditing.toggle()
+                HStack(spacing: 16) {
+                    // 공유 버튼
+                    Button {
+                        exportToPDF()
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
                     }
+                    .foregroundStyle(Color.accentGold)
+                    .accessibilityLabel("공유")
+                    .accessibilityHint("콘티를 PDF로 내보내거나 공유합니다")
+
+                    // 악보 보기 버튼 (악보가 있을 때만)
+                    if hasSheetMusic {
+                        Button {
+                            showingSheetMusicView = true
+                        } label: {
+                            Label("악보 보기", systemImage: "music.note.list")
+                        }
+                        .foregroundStyle(Color.accentGold)
+                        .accessibilityLabel("악보 보기")
+                        .accessibilityHint("콘티의 모든 악보를 순서대로 봅니다")
+                    }
+
+                    // 편집 버튼
+                    Button(isEditing ? "완료" : "편집") {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isEditing.toggle()
+                        }
+                    }
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.accentGold)
+                    .accessibilityHint(isEditing ? "편집 모드를 종료합니다" : "편집 모드로 전환하여 곡 순서를 변경하거나 삭제할 수 있습니다")
                 }
             }
         }
         .sheet(isPresented: $showingAddSong) {
             AddSongToSetlistView(setlist: setlist)
+        }
+        .sheet(isPresented: $showingSheetMusicView) {
+            SetlistSheetMusicView(setlist: setlist)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            if let pdfURL = pdfURL {
+                ShareSheet(items: [pdfURL])
+            }
         }
         .environment(\.editMode, isEditing ? .constant(.active) : .constant(.inactive))
     }
@@ -266,6 +315,14 @@ struct SetlistDetailView: View {
             }
         }
     }
+
+    private func exportToPDF() {
+        let pdfRenderer = SetlistPDFRenderer(setlist: setlist)
+        if let url = pdfRenderer.generatePDF() {
+            pdfURL = url
+            showingShareSheet = true
+        }
+    }
 }
 
 // 곡 간단 카드 (편집 모드용 - 번호, 제목, 기본 정보만)
@@ -276,64 +333,54 @@ struct SetlistSongSimpleCard: View {
 
     @State private var showingDeleteAlert = false
 
-    var song: Song {
-        item.song
+    var accessibilityDescription: String {
+        var description = "\(index)번, \(item.title)"
+
+        var details: [String] = []
+        if let key = item.key {
+            details.append("코드 \(key)")
+        }
+        if let tempo = item.tempo {
+            details.append("템포 \(tempo) BPM")
+        }
+        if let timeSignature = item.timeSignature {
+            details.append("박자 \(timeSignature)")
+        }
+
+        if !details.isEmpty {
+            description += ", " + details.joined(separator: ", ")
+        }
+
+        return description
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: Spacing.md) {
             // 번호
             Text("\(index)")
-                .font(.title2)
+                .font(.displaySmall)
                 .fontWeight(.bold)
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.accentGold)
                 .frame(width: 40)
 
             // 곡 정보
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
                 // 제목
-                Text(song.title)
-                    .font(.headline)
+                Text(item.title)
+                    .font(.titleSmall)
 
                 // 코드, 템포, 박자
-                HStack(spacing: 8) {
-                    if let key = item.displayKey {
-                        HStack(spacing: 2) {
-                            Text(key)
-                                .font(.caption)
-                            if item.customKey != nil {
-                                Image(systemName: "pencil.circle.fill")
-                                    .font(.caption2)
-                            }
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(item.customKey != nil ? .blue.opacity(0.4) : .blue.opacity(0.2))
-                        .clipShape(Capsule())
+                HStack(spacing: Spacing.sm) {
+                    if let key = item.key {
+                        Badge(key, style: .code)
                     }
 
-                    if let tempo = item.displayTempo {
-                        HStack(spacing: 2) {
-                            Text("\(tempo) BPM")
-                                .font(.caption)
-                            if item.customTempo != nil {
-                                Image(systemName: "pencil.circle.fill")
-                                    .font(.caption2)
-                            }
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(item.customTempo != nil ? .green.opacity(0.4) : .green.opacity(0.2))
-                        .clipShape(Capsule())
+                    if let tempo = item.tempo {
+                        Badge("\(tempo) BPM", style: .tempo)
                     }
 
-                    if let timeSignature = song.timeSignature {
-                        Text(timeSignature)
-                            .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(.orange.opacity(0.2))
-                            .clipShape(Capsule())
+                    if let timeSignature = item.timeSignature {
+                        Badge(timeSignature, style: .signature)
                     }
                 }
             }
@@ -348,10 +395,14 @@ struct SetlistSongSimpleCard: View {
                     .foregroundStyle(.red)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("곡 삭제")
+            .accessibilityHint("\(item.title)을(를) 콘티에서 삭제합니다")
         }
         .padding()
         .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(accessibilityDescription)
         .alert("곡 삭제", isPresented: $showingDeleteAlert) {
             Button("취소", role: .cancel) {}
             Button("삭제", role: .destructive) {
@@ -375,25 +426,21 @@ struct SetlistSongDetailCard: View {
     @State private var showingItemDetail = false
     @State private var showingDeleteAlert = false
 
-    var song: Song {
-        item.song
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Spacing.lg) {
             // 헤더: 번호, 제목, 삭제 버튼
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: Spacing.md) {
                 // 번호
                 Text("\(index)")
-                    .font(.title2)
+                    .font(.displaySmall)
                     .fontWeight(.bold)
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.accentGold)
                     .frame(width: 40)
 
                 // 곡 제목
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(song.title)
-                        .font(.headline)
+                    Text(item.title)
+                        .font(.titleSmall)
                 }
 
                 Spacer()
@@ -403,9 +450,11 @@ struct SetlistSongDetailCard: View {
                     showingItemDetail = true
                 } label: {
                     Image(systemName: "gearshape.fill")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color.accentGold)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("곡 설정")
+                .accessibilityHint("코드, 템포, 구조, 메모를 변경할 수 있습니다")
 
                 // 삭제 버튼 (편집 모드에서만)
                 if isEditing {
@@ -416,66 +465,41 @@ struct SetlistSongDetailCard: View {
                             .foregroundStyle(.red)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("곡 삭제")
+                    .accessibilityHint("\(item.title)을(를) 콘티에서 삭제합니다")
                 }
             }
 
             // 곡 정보
-            HStack(spacing: 8) {
-                if let key = item.displayKey {
-                    HStack(spacing: 2) {
-                        Text(key)
-                            .font(.caption)
-                        if item.customKey != nil {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.caption2)
-                        }
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(item.customKey != nil ? .blue.opacity(0.4) : .blue.opacity(0.2))
-                    .clipShape(Capsule())
+            HStack(spacing: Spacing.sm) {
+                if let key = item.key {
+                    Badge(key, style: .code)
                 }
 
-                if let tempo = item.displayTempo {
-                    HStack(spacing: 2) {
-                        Text("\(tempo) BPM")
-                            .font(.caption)
-                        if item.customTempo != nil {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.caption2)
-                        }
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(item.customTempo != nil ? .green.opacity(0.4) : .green.opacity(0.2))
-                    .clipShape(Capsule())
+                if let tempo = item.tempo {
+                    Badge("\(tempo) BPM", style: .tempo)
                 }
 
-                if let timeSignature = song.timeSignature {
-                    Text(timeSignature)
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.orange.opacity(0.2))
-                        .clipShape(Capsule())
+                if let timeSignature = item.timeSignature {
+                    Badge(timeSignature, style: .signature)
                 }
 
                 if item.notes != nil {
                     Image(systemName: "note.text")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.labelMedium)
+                        .foregroundStyle(Color.textSecondary)
                 }
             }
 
             // 곡 구조
-            if !song.sections.isEmpty {
+            if !item.sections.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("구조")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
 
-                    let sortedSections = song.sections.sorted(by: { $0.order < $1.order })
+                    let sortedSections = item.sections.sorted(by: { $0.order < $1.order })
 
                     FlowLayout(spacing: 6) {
                         ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
@@ -500,7 +524,7 @@ struct SetlistSongDetailCard: View {
             }
 
             // 악보 이미지
-            if !song.sheetMusicImages.isEmpty {
+            if !item.sheetMusicImages.isEmpty {
                 let sheetMusicHeight: CGFloat = isIPad ? 600 : 400
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -515,7 +539,7 @@ struct SetlistSongDetailCard: View {
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             LazyHStack(spacing: spacing) {
-                                ForEach(Array(song.sheetMusicImages.enumerated()), id: \.offset) { index, imageData in
+                                ForEach(Array(item.sheetMusicImages.enumerated()), id: \.offset) { index, imageData in
                                     if let uiImage = UIImage(data: imageData) {
                                         Image(uiImage: uiImage)
                                             .resizable()
@@ -570,6 +594,195 @@ struct SetlistSongDetailCard: View {
             }
         } message: {
             Text("이 곡을 콘티에서 삭제하시겠습니까?")
+        }
+    }
+}
+
+// ShareSheet (UIKit UIActivityViewController wrapper)
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+// PDF 생성기
+class SetlistPDFRenderer {
+    let setlist: Setlist
+
+    init(setlist: Setlist) {
+        self.setlist = setlist
+    }
+
+    func generatePDF() -> URL? {
+        let pdfMetaData = [
+            kCGPDFContextCreator: "Musicon",
+            kCGPDFContextTitle: setlist.title
+        ]
+        let format = UIGraphicsPDFRendererFormat()
+        format.documentInfo = pdfMetaData as [String: Any]
+
+        let pageWidth = 8.5 * 72.0
+        let pageHeight = 11 * 72.0
+        let pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
+
+        let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
+
+        let data = renderer.pdfData { context in
+            context.beginPage()
+
+            let titleFont = UIFont.boldSystemFont(ofSize: 24)
+            let headingFont = UIFont.boldSystemFont(ofSize: 16)
+            let bodyFont = UIFont.systemFont(ofSize: 12)
+            let captionFont = UIFont.systemFont(ofSize: 10)
+
+            var yPosition: CGFloat = 50
+
+            // 제목
+            let titleAttributes: [NSAttributedString.Key: Any] = [
+                .font: titleFont,
+                .foregroundColor: UIColor.black
+            ]
+            let titleText = setlist.title
+            titleText.draw(at: CGPoint(x: 50, y: yPosition), withAttributes: titleAttributes)
+            yPosition += 40
+
+            // 공연 날짜
+            if let performanceDate = setlist.performanceDate {
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateStyle = .long
+                let dateText = "공연 날짜: \(dateFormatter.string(from: performanceDate))"
+                let dateAttributes: [NSAttributedString.Key: Any] = [
+                    .font: bodyFont,
+                    .foregroundColor: UIColor.darkGray
+                ]
+                dateText.draw(at: CGPoint(x: 50, y: yPosition), withAttributes: dateAttributes)
+                yPosition += 30
+            }
+
+            // 메모
+            if let notes = setlist.notes, !notes.isEmpty {
+                let notesText = "메모: \(notes)"
+                let notesAttributes: [NSAttributedString.Key: Any] = [
+                    .font: bodyFont,
+                    .foregroundColor: UIColor.darkGray
+                ]
+                let notesRect = CGRect(x: 50, y: yPosition, width: pageWidth - 100, height: 60)
+                notesText.draw(in: notesRect, withAttributes: notesAttributes)
+                yPosition += 70
+            }
+
+            // 구분선
+            let linePath = UIBezierPath()
+            linePath.move(to: CGPoint(x: 50, y: yPosition))
+            linePath.addLine(to: CGPoint(x: pageWidth - 50, y: yPosition))
+            UIColor.lightGray.setStroke()
+            linePath.lineWidth = 1
+            linePath.stroke()
+            yPosition += 20
+
+            // 곡 목록 헤더
+            let headerText = "곡 목록 (\(setlist.items.count)곡)"
+            let headerAttributes: [NSAttributedString.Key: Any] = [
+                .font: headingFont,
+                .foregroundColor: UIColor.black
+            ]
+            headerText.draw(at: CGPoint(x: 50, y: yPosition), withAttributes: headerAttributes)
+            yPosition += 30
+
+            // 곡 목록
+            let sortedItems = setlist.items.sorted { $0.order < $1.order }
+            for (index, item) in sortedItems.enumerated() {
+                // 페이지 넘김 체크
+                if yPosition > pageHeight - 100 {
+                    context.beginPage()
+                    yPosition = 50
+                }
+
+                let songNumber = "\(index + 1)."
+                let songTitle = item.title
+
+                // 번호와 제목
+                let numberAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.boldSystemFont(ofSize: 14),
+                    .foregroundColor: UIColor.systemBlue
+                ]
+                songNumber.draw(at: CGPoint(x: 50, y: yPosition), withAttributes: numberAttributes)
+
+                let titleAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.boldSystemFont(ofSize: 14),
+                    .foregroundColor: UIColor.black
+                ]
+                songTitle.draw(at: CGPoint(x: 80, y: yPosition), withAttributes: titleAttributes)
+                yPosition += 20
+
+                // 곡 정보 (코드, 템포, 박자)
+                var infoText = ""
+                if let key = item.key {
+                    infoText += "코드: \(key)"
+                }
+                if let tempo = item.tempo {
+                    if !infoText.isEmpty { infoText += " | " }
+                    infoText += "템포: \(tempo) BPM"
+                }
+                if let timeSignature = item.timeSignature {
+                    if !infoText.isEmpty { infoText += " | " }
+                    infoText += "박자: \(timeSignature)"
+                }
+
+                if !infoText.isEmpty {
+                    let infoAttributes: [NSAttributedString.Key: Any] = [
+                        .font: captionFont,
+                        .foregroundColor: UIColor.darkGray
+                    ]
+                    infoText.draw(at: CGPoint(x: 80, y: yPosition), withAttributes: infoAttributes)
+                    yPosition += 15
+                }
+
+                // 곡 구조
+                let sortedSections = item.sections.sorted { $0.order < $1.order }
+                if !sortedSections.isEmpty {
+                    let structureText = "구조: " + sortedSections.map { $0.displayLabel }.joined(separator: " → ")
+                    let structureAttributes: [NSAttributedString.Key: Any] = [
+                        .font: captionFont,
+                        .foregroundColor: UIColor.darkGray
+                    ]
+                    structureText.draw(at: CGPoint(x: 80, y: yPosition), withAttributes: structureAttributes)
+                    yPosition += 15
+                }
+
+                // 메모
+                if let notes = item.notes, !notes.isEmpty {
+                    let notesText = "메모: \(notes)"
+                    let notesAttributes: [NSAttributedString.Key: Any] = [
+                        .font: captionFont,
+                        .foregroundColor: UIColor.darkGray
+                    ]
+                    let notesRect = CGRect(x: 80, y: yPosition, width: pageWidth - 130, height: 40)
+                    notesText.draw(in: notesRect, withAttributes: notesAttributes)
+                    yPosition += 45
+                } else {
+                    yPosition += 10
+                }
+
+                yPosition += 10
+            }
+        }
+
+        // 임시 파일로 저장
+        let fileName = "\(setlist.title).pdf"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+
+        do {
+            try data.write(to: tempURL)
+            return tempURL
+        } catch {
+            print("PDF 저장 실패: \(error)")
+            return nil
         }
     }
 }

@@ -12,9 +12,9 @@ import UIKit
 @Model
 final class Song {
     @Attribute(.unique) var id: UUID
-    @Attribute var title: String
-    @Attribute var createdAt: Date
-    @Attribute var updatedAt: Date
+    var title: String
+    var createdAt: Date
+    var updatedAt: Date
 
     // 음악 정보
     var tempo: Int?

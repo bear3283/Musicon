@@ -46,6 +46,8 @@ struct SongStructureSection: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 4))
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("\(type.displayName) 섹션 추가")
+                            .accessibilityHint("곡 구조에 \(type.displayName) 섹션을 추가합니다")
                         }
                     }
                 }
@@ -93,6 +95,7 @@ struct SongStructureSection: View {
                                                 .font(.caption2)
                                                 .foregroundStyle(.red)
                                         }
+                                        .accessibilityLabel("\(section.displayLabel) 섹션 삭제")
                                     }
                                 }
                                 .padding(.horizontal, 10)
@@ -101,6 +104,8 @@ struct SongStructureSection: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel(section.displayLabel)
+                            .accessibilityHint("섹션을 편집하려면 누르세요")
 
                             if index < sortedSections.count - 1 {
                                 Image(systemName: "arrow.right")

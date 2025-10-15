@@ -24,19 +24,19 @@ struct SongInfoSection: View {
     let timeSignatures = ["4/4", "3/4", "6/8", "2/4", "5/4", "7/8", "12/8"]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             if isEditing {
                 // 편집 모드: 제목만
                 Text("곡 정보")
-                    .font(.headline)
+                    .font(.titleMedium)
 
                 // 편집 모드
-                VStack(spacing: 16) {
+                VStack(spacing: Spacing.lg) {
                     HStack(spacing: 0) {
                         VStack(spacing: 4) {
                             Text("코드")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.labelMedium)
+                                .foregroundStyle(Color.textSecondary)
 
                             Picker("코드", selection: $editedKey) {
                                 ForEach(keys, id: \.self) { keyOption in
@@ -45,13 +45,14 @@ struct SongInfoSection: View {
                             }
                             .pickerStyle(.wheel)
                             .labelsHidden()
+                            .tint(.accentGold)
                         }
                         .frame(maxWidth: .infinity)
 
                         VStack(spacing: 4) {
                             Text("템포 (BPM)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.labelMedium)
+                                .foregroundStyle(Color.textSecondary)
 
                             Picker("템포", selection: $editedTempo) {
                                 ForEach(tempoOptions, id: \.self) { bpm in
@@ -60,13 +61,14 @@ struct SongInfoSection: View {
                             }
                             .pickerStyle(.wheel)
                             .labelsHidden()
+                            .tint(.accentGold)
                         }
                         .frame(maxWidth: .infinity)
 
                         VStack(spacing: 4) {
                             Text("박자")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.labelMedium)
+                                .foregroundStyle(Color.textSecondary)
 
                             Picker("박자", selection: $editedTimeSignature) {
                                 ForEach(timeSignatures, id: \.self) { signature in
@@ -75,51 +77,37 @@ struct SongInfoSection: View {
                             }
                             .pickerStyle(.wheel)
                             .labelsHidden()
+                            .tint(.accentGold)
                         }
                         .frame(maxWidth: .infinity)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.md)
                     .frame(height: 140)
                     .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
                 }
             } else {
                 // 보기 모드: 한 줄로 배치
-                HStack(spacing: 12) {
+                HStack(spacing: Spacing.md) {
                     Text("곡 정보")
-                        .font(.headline)
+                        .font(.titleMedium)
 
                     Spacer()
 
                     // 코드
-                    HStack(spacing: 4) {
-                        Text("코드")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(song.key ?? "-")
-                            .font(.callout)
-                            .fontWeight(.semibold)
+                    if let key = song.key {
+                        Badge(key, style: .code)
                     }
 
                     // 템포
-                    HStack(spacing: 4) {
-                        Text("템포")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(song.tempo != nil ? "\(song.tempo!)" : "-")
-                            .font(.callout)
-                            .fontWeight(.semibold)
+                    if let tempo = song.tempo {
+                        Badge("\(tempo) BPM", style: .tempo)
                     }
 
                     // 박자
-                    HStack(spacing: 4) {
-                        Text("박자")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(song.timeSignature ?? "-")
-                            .font(.callout)
-                            .fontWeight(.semibold)
+                    if let timeSignature = song.timeSignature {
+                        Badge(timeSignature, style: .signature)
                     }
                 }
             }

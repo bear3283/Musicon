@@ -13,14 +13,80 @@ struct SongListView: View {
     @Query(sort: \Song.createdAt, order: .reverse) private var songs: [Song]
     @State private var searchText = ""
     @State private var showingCreateSheet = false
+    @State private var showingFilterSheet = false
     @State private var songToDelete: Song?
 
+    // 필터 상태
+    @State private var selectedKeys: Set<String> = []
+    @State private var minTempo: Int?
+    @State private var maxTempo: Int?
+    @State private var selectedTimeSignatures: Set<String> = []
+
     var filteredSongs: [Song] {
-        if searchText.isEmpty {
-            return songs
-        } else {
-            return songs.filter { $0.title.localizedStandardContains(searchText) }
+        var result = songs
+
+        // 검색어 필터링 (제목, 코드, 템포, 박자)
+        if !searchText.isEmpty {
+            result = result.filter { song in
+                song.title.localizedStandardContains(searchText) ||
+                (song.key?.localizedStandardContains(searchText) ?? false) ||
+                (song.tempo != nil && "\(song.tempo!)".contains(searchText)) ||
+                (song.timeSignature?.localizedStandardContains(searchText) ?? false)
+            }
         }
+
+        // 코드 필터
+        if !selectedKeys.isEmpty {
+            result = result.filter { song in
+                if let key = song.key {
+                    return selectedKeys.contains(key)
+                }
+                return false
+            }
+        }
+
+        // 템포 필터
+        if let minTempo = minTempo {
+            result = result.filter { song in
+                if let tempo = song.tempo {
+                    return tempo >= minTempo
+                }
+                return false
+            }
+        }
+
+        if let maxTempo = maxTempo {
+            result = result.filter { song in
+                if let tempo = song.tempo {
+                    return tempo <= maxTempo
+                }
+                return false
+            }
+        }
+
+        // 박자 필터
+        if !selectedTimeSignatures.isEmpty {
+            result = result.filter { song in
+                if let timeSignature = song.timeSignature {
+                    return selectedTimeSignatures.contains(timeSignature)
+                }
+                return false
+            }
+        }
+
+        return result
+    }
+
+    var hasActiveFilters: Bool {
+        !selectedKeys.isEmpty || minTempo != nil || maxTempo != nil || !selectedTimeSignatures.isEmpty
+    }
+
+    var availableKeys: [String] {
+        Array(Set(songs.compactMap { $0.key })).sorted()
+    }
+
+    var availableTimeSignatures: [String] {
+        Array(Set(songs.compactMap { $0.timeSignature })).sorted()
     }
 
     var body: some View {
@@ -53,20 +119,52 @@ struct SongListView: View {
             }
             .navigationTitle("곡 목록")
             .searchable(text: $searchText, prompt: "곡 검색")
+            .tint(Color.accentGold)
             .navigationDestination(for: Song.self) { song in
                 SongDetailView(song: song)
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingFilterSheet = true
+                    } label: {
+                        Image(systemName: hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                            .foregroundStyle(hasActiveFilters ? Color.accentGold : Color.textPrimary)
+                    }
+                    .accessibilityLabel("필터")
+                    .accessibilityHint(hasActiveFilters ? "활성화된 필터가 있습니다. 필터를 변경하거나 제거할 수 있습니다" : "곡 목록을 필터링합니다")
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingCreateSheet = true
                     } label: {
-                        Image(systemName: "plus")
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(Color.accentGold)
                     }
+                    .accessibilityLabel("새 곡 추가")
+                    .accessibilityHint("새로운 곡을 추가합니다")
                 }
             }
             .sheet(isPresented: $showingCreateSheet) {
                 CreateSongView()
+            }
+            .sheet(isPresented: $showingFilterSheet) {
+                SongFilterView(
+                    selectedKeys: $selectedKeys,
+                    minTempo: $minTempo,
+                    maxTempo: $maxTempo,
+                    selectedTimeSignatures: $selectedTimeSignatures,
+                    availableKeys: availableKeys,
+                    availableTimeSignatures: availableTimeSignatures,
+                    onReset: {
+                        selectedKeys.removeAll()
+                        minTempo = nil
+                        maxTempo = nil
+                        selectedTimeSignatures.removeAll()
+                    }
+                )
             }
             .alert("곡 삭제", isPresented: Binding(
                 get: { songToDelete != nil },
@@ -93,41 +191,52 @@ struct SongListView: View {
 struct SongRowView: View {
     let song: Song
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(song.title)
-                .font(.headline)
+    var accessibilityDescription: String {
+        var description = song.title
 
-            HStack {
+        var details: [String] = []
+        if let key = song.key {
+            details.append("코드 \(key)")
+        }
+        if let tempo = song.tempo {
+            details.append("템포 \(tempo) BPM")
+        }
+        if let timeSignature = song.timeSignature {
+            details.append("박자 \(timeSignature)")
+        }
+
+        if !details.isEmpty {
+            description += ", " + details.joined(separator: ", ")
+        }
+
+        return description
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text(song.title)
+                .font(.titleSmall)
+                .foregroundStyle(Color.textPrimary)
+
+            HStack(spacing: Spacing.sm) {
                 if let key = song.key {
-                    Text(key)
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.blue.opacity(0.2))
-                        .clipShape(Capsule())
+                    Badge(key, style: .code)
                 }
 
                 if let tempo = song.tempo {
-                    Text("\(tempo) BPM")
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.green.opacity(0.2))
-                        .clipShape(Capsule())
+                    Badge("\(tempo) BPM", style: .tempo)
                 }
 
                 if let timeSignature = song.timeSignature {
-                    Text(timeSignature)
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.orange.opacity(0.2))
-                        .clipShape(Capsule())
+                    Badge(timeSignature, style: .signature)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.sm)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("곡 상세 정보를 확인합니다")
     }
 }
 
@@ -154,6 +263,8 @@ struct CreateSongView: View {
             Form {
                 Section("기본 정보") {
                     TextField("곡 제목", text: $title)
+                        .accessibilityLabel("곡 제목")
+                        .accessibilityHint("곡의 이름을 입력하세요")
                 }
 
                 Section("음악 정보") {
@@ -170,6 +281,9 @@ struct CreateSongView: View {
                             }
                             .pickerStyle(.wheel)
                             .labelsHidden()
+                            .accessibilityLabel("코드")
+                            .accessibilityValue(key)
+                            .accessibilityHint("곡의 코드를 선택하세요")
                         }
                         .frame(maxWidth: .infinity)
 
@@ -185,6 +299,9 @@ struct CreateSongView: View {
                             }
                             .pickerStyle(.wheel)
                             .labelsHidden()
+                            .accessibilityLabel("템포")
+                            .accessibilityValue("\(tempo) BPM")
+                            .accessibilityHint("곡의 템포를 선택하세요")
                         }
                         .frame(maxWidth: .infinity)
 
@@ -200,6 +317,9 @@ struct CreateSongView: View {
                             }
                             .pickerStyle(.wheel)
                             .labelsHidden()
+                            .accessibilityLabel("박자")
+                            .accessibilityValue(timeSignature)
+                            .accessibilityHint("곡의 박자를 선택하세요")
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -208,18 +328,23 @@ struct CreateSongView: View {
             }
             .navigationTitle("새 곡 추가")
             .navigationBarTitleDisplayMode(.inline)
+            .tint(Color.accentGold)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("취소") {
                         dismiss()
                     }
+                    .foregroundStyle(Color.textSecondary)
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("추가") {
                         addSong()
                     }
+                    .fontWeight(.semibold)
+                    .foregroundStyle(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.textTertiary : Color.accentGold)
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityHint(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "곡 제목을 먼저 입력하세요" : "새 곡을 추가합니다")
                 }
             }
             .alert("유효성 검사 오류", isPresented: $showingValidationError) {
@@ -262,6 +387,154 @@ struct CreateSongView: View {
         } catch {
             validationErrorMessage = "곡 추가에 실패했습니다"
             showingValidationError = true
+        }
+    }
+}
+
+struct SongFilterView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @Binding var selectedKeys: Set<String>
+    @Binding var minTempo: Int?
+    @Binding var maxTempo: Int?
+    @Binding var selectedTimeSignatures: Set<String>
+
+    let availableKeys: [String]
+    let availableTimeSignatures: [String]
+    let onReset: () -> Void
+
+    @State private var minTempoText = ""
+    @State private var maxTempoText = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                // 코드 필터
+                if !availableKeys.isEmpty {
+                    Section {
+                        ForEach(availableKeys, id: \.self) { key in
+                            Toggle(isOn: Binding(
+                                get: { selectedKeys.contains(key) },
+                                set: { isSelected in
+                                    if isSelected {
+                                        selectedKeys.insert(key)
+                                    } else {
+                                        selectedKeys.remove(key)
+                                    }
+                                }
+                            )) {
+                                HStack {
+                                    Text(key)
+                                        .font(.body)
+                                    Spacer()
+                                    Text(key)
+                                        .font(.caption)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(.blue.opacity(0.2))
+                                        .clipShape(Capsule())
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("코드")
+                    }
+                }
+
+                // 템포 필터
+                Section {
+                    HStack {
+                        Text("최소")
+                        TextField("BPM", text: $minTempoText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .onChange(of: minTempoText) { _, newValue in
+                                minTempo = Int(newValue)
+                            }
+                    }
+
+                    HStack {
+                        Text("최대")
+                        TextField("BPM", text: $maxTempoText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .onChange(of: maxTempoText) { _, newValue in
+                                maxTempo = Int(newValue)
+                            }
+                    }
+                } header: {
+                    Text("템포 (BPM)")
+                }
+
+                // 박자 필터
+                if !availableTimeSignatures.isEmpty {
+                    Section {
+                        ForEach(availableTimeSignatures, id: \.self) { signature in
+                            Toggle(isOn: Binding(
+                                get: { selectedTimeSignatures.contains(signature) },
+                                set: { isSelected in
+                                    if isSelected {
+                                        selectedTimeSignatures.insert(signature)
+                                    } else {
+                                        selectedTimeSignatures.remove(signature)
+                                    }
+                                }
+                            )) {
+                                HStack {
+                                    Text(signature)
+                                        .font(.body)
+                                    Spacer()
+                                    Text(signature)
+                                        .font(.caption)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(.orange.opacity(0.2))
+                                        .clipShape(Capsule())
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("박자")
+                    }
+                }
+            }
+            .navigationTitle("필터")
+            .navigationBarTitleDisplayMode(.inline)
+            .tint(Color.accentGold)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("취소") {
+                        dismiss()
+                    }
+                    .foregroundStyle(Color.textSecondary)
+                }
+
+                ToolbarItem(placement: .primaryAction) {
+                    Button("초기화") {
+                        onReset()
+                        minTempoText = ""
+                        maxTempoText = ""
+                    }
+                    .foregroundStyle(Color.textSecondary)
+                    .disabled(selectedKeys.isEmpty && minTempo == nil && maxTempo == nil && selectedTimeSignatures.isEmpty)
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("적용") {
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.accentGold)
+                }
+            }
+            .onAppear {
+                if let minTempo = minTempo {
+                    minTempoText = "\(minTempo)"
+                }
+                if let maxTempo = maxTempo {
+                    maxTempoText = "\(maxTempo)"
+                }
+            }
         }
     }
 }

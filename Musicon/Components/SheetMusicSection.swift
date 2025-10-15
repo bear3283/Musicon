@@ -85,9 +85,13 @@ struct SheetMusicSection: View {
                                                         .background(Circle().fill(.red))
                                                 }
                                                 .padding(4)
+                                                .accessibilityLabel("악보 이미지 삭제")
+                                                .accessibilityHint("\(index + 1)번 악보 이미지를 삭제합니다")
                                             }
                                     }
                                     .buttonStyle(.plain)
+                                    .accessibilityLabel("악보 이미지 \(index + 1)")
+                                    .accessibilityHint("크게 보려면 누르세요")
                                     .scrollTransition { content, phase in
                                         content
                                             .scaleEffect(phase.isIdentity ? 1 : 0.95)
@@ -125,6 +129,8 @@ struct SheetMusicSection: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .disabled(isLoadingImages)
+            .accessibilityLabel(isLoadingImages ? "이미지 로딩 중" : "악보 추가")
+            .accessibilityHint(isLoadingImages ? "이미지를 불러오고 있습니다" : "사진 라이브러리 또는 파일에서 악보 이미지를 선택합니다")
 
             // 메모 섹션
             VStack(alignment: .leading, spacing: 8) {
@@ -151,6 +157,8 @@ struct SheetMusicSection: View {
                             saveNotes()
                         }
                     }
+                    .accessibilityLabel("메모")
+                    .accessibilityHint("곡에 대한 메모를 입력하세요")
             }
         }
         .onAppear {

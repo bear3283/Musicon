@@ -28,11 +28,15 @@ struct SongDetailView: View {
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(song.title)
         .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .inline : .large)
+        .tint(.accentGold)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(isEditing ? "완료" : "편집") {
                     isEditing.toggle()
                 }
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.accentGold)
+                .accessibilityHint(isEditing ? "편집 모드를 종료합니다" : "편집 모드로 전환하여 곡 정보를 수정할 수 있습니다")
             }
         }
     }

@@ -114,10 +114,6 @@ struct SetlistSongRow: View {
     let item: SetlistItem
     let onDelete: () -> Void
 
-    var song: Song {
-        item.song
-    }
-
     var body: some View {
         HStack(spacing: 12) {
             // 순서 번호
@@ -128,41 +124,29 @@ struct SetlistSongRow: View {
 
             // 곡 정보
             VStack(alignment: .leading, spacing: 4) {
-                Text(song.title)
+                Text(item.title)
                     .font(.headline)
 
                 HStack(spacing: 8) {
-                    if let key = item.displayKey {
-                        HStack(spacing: 2) {
-                            Text(key)
-                                .font(.caption)
-                            if item.customKey != nil {
-                                Image(systemName: "pencil.circle.fill")
-                                    .font(.caption2)
-                            }
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(item.customKey != nil ? .blue.opacity(0.4) : .blue.opacity(0.2))
-                        .clipShape(Capsule())
+                    if let key = item.key {
+                        Text(key)
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.blue.opacity(0.2))
+                            .clipShape(Capsule())
                     }
 
-                    if let tempo = item.displayTempo {
-                        HStack(spacing: 2) {
-                            Text("\(tempo) BPM")
-                                .font(.caption)
-                            if item.customTempo != nil {
-                                Image(systemName: "pencil.circle.fill")
-                                    .font(.caption2)
-                            }
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(item.customTempo != nil ? .green.opacity(0.4) : .green.opacity(0.2))
-                        .clipShape(Capsule())
+                    if let tempo = item.tempo {
+                        Text("\(tempo) BPM")
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.green.opacity(0.2))
+                            .clipShape(Capsule())
                     }
 
-                    if let timeSignature = song.timeSignature {
+                    if let timeSignature = item.timeSignature {
                         Text(timeSignature)
                             .font(.caption)
                             .padding(.horizontal, 6)

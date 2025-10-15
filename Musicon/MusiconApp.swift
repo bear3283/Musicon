@@ -15,7 +15,8 @@ struct MusiconApp: App {
             Song.self,
             SongSection.self,
             Setlist.self,
-            SetlistItem.self
+            SetlistItem.self,
+            SetlistItemSection.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

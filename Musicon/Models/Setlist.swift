@@ -11,9 +11,9 @@ import SwiftData
 @Model
 final class Setlist {
     @Attribute(.unique) var id: UUID
-    @Attribute var title: String
-    @Attribute var createdAt: Date
-    @Attribute var updatedAt: Date
+    var title: String
+    var createdAt: Date
+    var updatedAt: Date
     var performanceDate: Date?
     var notes: String?
 

@@ -18,67 +18,70 @@ struct SetlistInfoSection: View {
     @State private var editedNotes: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             Text("콘티 정보")
-                .font(.headline)
+                .font(.titleMedium)
 
             if isEditing {
                 // 편집 모드
-                VStack(spacing: 16) {
-                    HStack(spacing: 12) {
+                VStack(spacing: Spacing.lg) {
+                    HStack(spacing: Spacing.md) {
                         Text("공연 날짜")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.labelMedium)
+                            .foregroundStyle(Color.textSecondary)
 
                         Text("/")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.labelMedium)
+                            .foregroundStyle(Color.textSecondary)
 
                         DatePicker("", selection: $editedDate, displayedComponents: [.date])
                             .datePickerStyle(.compact)
                             .labelsHidden()
+                            .tint(.accentGold)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("제목")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.labelMedium)
+                            .foregroundStyle(Color.textSecondary)
                         TextField("콘티 제목", text: $editedTitle)
                             .textFieldStyle(.roundedBorder)
+                            .tint(.accentGold)
                     }
 
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("메모")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.labelMedium)
+                            .foregroundStyle(Color.textSecondary)
                         TextEditor(text: $editedNotes)
                             .frame(height: 100)
                             .multilineTextAlignment(.leading)
-                            .padding(8)
+                            .padding(Spacing.sm)
                             .background(Color(.systemGray6))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                            .tint(.accentGold)
                     }
                 }
                 .padding()
                 .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
             } else {
                 // 보기 모드
-                VStack(spacing: 16) {
+                VStack(spacing: Spacing.lg) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("공연 날짜")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.labelMedium)
+                                .foregroundStyle(Color.textSecondary)
                             if let date = setlist.performanceDate {
                                 Text(date, style: .date)
-                                    .font(.body)
+                                    .font(.bodyLarge)
                                     .fontWeight(.medium)
                             } else {
                                 Text("-")
-                                    .font(.body)
-                                    .foregroundStyle(.secondary)
+                                    .font(.bodyLarge)
+                                    .foregroundStyle(Color.textSecondary)
                             }
                         }
 
@@ -86,21 +89,26 @@ struct SetlistInfoSection: View {
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("곡 수")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("\(setlist.items.count)곡")
-                                .font(.body)
-                                .fontWeight(.medium)
+                                .font(.labelMedium)
+                                .foregroundStyle(Color.textSecondary)
+                            HStack(spacing: 4) {
+                                Image(systemName: "music.note.list")
+                                    .font(.labelSmall)
+                                Text("\(setlist.items.count)곡")
+                                    .font(.bodyLarge)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundStyle(Color.accentGold)
                         }
                     }
 
                     if let notes = setlist.notes, !notes.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("메모")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.labelMedium)
+                                .foregroundStyle(Color.textSecondary)
                             Text(notes)
-                                .font(.body)
+                                .font(.bodyLarge)
                                 .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -108,7 +116,7 @@ struct SetlistInfoSection: View {
                 }
                 .padding()
                 .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
             }
         }
         .onAppear {

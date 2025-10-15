@@ -34,6 +34,7 @@ struct RootView: View {
                     Label("콘티", systemImage: "music.note.list")
                 }
         }
+        .tint(.accentGold)
     }
 
     @ViewBuilder
@@ -54,17 +55,24 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: $selectedTab) {
-            Section("라이브러리") {
+            Section {
                 NavigationLink(value: SidebarTab.songs) {
                     Label("곡", systemImage: "music.note")
+                        .font(.bodyLarge)
                 }
 
                 NavigationLink(value: SidebarTab.setlists) {
                     Label("콘티", systemImage: "music.note.list")
+                        .font(.bodyLarge)
                 }
+            } header: {
+                Text("라이브러리")
+                    .font(.labelLarge)
+                    .foregroundStyle(Color.textSecondary)
             }
         }
         .navigationTitle("Musicon")
+        .tint(.accentGold)
         .navigationDestination(for: SidebarTab.self) { tab in
             switch tab {
             case .songs:
@@ -210,43 +218,43 @@ struct SetlistListContentView: View {
 // MARK: - Placeholder Views
 struct ContentPlaceholderView: View {
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: Spacing.lg) {
             Image(systemName: "music.note.list")
-                .font(.system(size: 60))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 60, weight: .light))
+                .foregroundStyle(Color.accentGold.opacity(0.6))
 
             Text("항목을 선택하세요")
-                .font(.title2)
-                .foregroundStyle(.secondary)
+                .font(.titleLarge)
+                .foregroundStyle(Color.textPrimary)
 
             Text("왼쪽에서 곡이나 콘티를 선택하면\n여기에 목록이 표시됩니다")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
+                .font(.bodyMedium)
+                .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemGroupedBackground))
+        .background(Color.backgroundSecondary)
     }
 }
 
 struct DetailPlaceholderView: View {
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: Spacing.lg) {
             Image(systemName: "music.note")
-                .font(.system(size: 60))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 60, weight: .light))
+                .foregroundStyle(Color.accentGold.opacity(0.6))
 
             Text("상세 정보")
-                .font(.title2)
-                .foregroundStyle(.secondary)
+                .font(.titleLarge)
+                .foregroundStyle(Color.textPrimary)
 
             Text("목록에서 항목을 선택하면\n여기에 상세 정보가 표시됩니다")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
+                .font(.bodyMedium)
+                .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemGroupedBackground))
+        .background(Color.backgroundSecondary)
     }
 }
 

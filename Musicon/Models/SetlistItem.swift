@@ -16,37 +16,64 @@ final class SetlistItem: Identifiable {
     @Relationship(inverse: \Setlist.items)
     var setlist: Setlist?
 
+    // 원곡 참조 (옵셔널 - 원곡이 삭제되어도 콘티 아이템은 유지)
     @Relationship(inverse: \Song.setlistItems)
-    var song: Song
+    var originalSong: Song?
 
-    // 콘티별 커스터마이징
-    var customKey: String?
-    var customTempo: Int?
+    // 복제된 곡 데이터 (콘티별로 독립적으로 수정 가능)
+    var title: String
+    var key: String?
+    var tempo: Int?
+    var timeSignature: String?
     var notes: String?
+
+    // 복제된 악보 이미지
+    @Attribute(.externalStorage)
+    var sheetMusicImages: [Data]
+
+    // 복제된 곡 구조
+    @Relationship(deleteRule: .cascade)
+    var sections: [SetlistItemSection]
 
     init(
         id: UUID = UUID(),
         order: Int,
-        song: Song,
-        customKey: String? = nil,
-        customTempo: Int? = nil,
-        notes: String? = nil
+        originalSong: Song? = nil,
+        title: String,
+        key: String? = nil,
+        tempo: Int? = nil,
+        timeSignature: String? = nil,
+        notes: String? = nil,
+        sheetMusicImages: [Data] = [],
+        sections: [SetlistItemSection] = []
     ) {
         self.id = id
         self.order = order
-        self.song = song
-        self.customKey = customKey
-        self.customTempo = customTempo
+        self.originalSong = originalSong
+        self.title = title
+        self.key = key
+        self.tempo = tempo
+        self.timeSignature = timeSignature
         self.notes = notes
+        self.sheetMusicImages = sheetMusicImages
+        self.sections = sections
     }
 
-    // 표시할 키 (커스텀이 있으면 커스텀, 없으면 원곡)
-    var displayKey: String? {
-        customKey ?? song.key
-    }
+    // Song으로부터 복제하는 편의 생성자
+    convenience init(order: Int, cloneFrom song: Song) {
+        // 섹션 복제
+        let clonedSections = song.sections.map { SetlistItemSection(from: $0) }
 
-    // 표시할 템포 (커스텀이 있으면 커스텀, 없으면 원곡)
-    var displayTempo: Int? {
-        customTempo ?? song.tempo
+        self.init(
+            order: order,
+            originalSong: song,
+            title: song.title,
+            key: song.key,
+            tempo: song.tempo,
+            timeSignature: song.timeSignature,
+            notes: nil, // 콘티 메모는 비워둠
+            sheetMusicImages: song.sheetMusicImages,
+            sections: clonedSections
+        )
     }
 }
