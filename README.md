@@ -87,7 +87,6 @@
 | tempo | Int? | BPM (템포) |
 | key | String? | 조 (C, D, Em, etc.) |
 | timeSignature | String? | 박자 (4/4, 3/4, etc.) |
-| capo | Int? | 카포 위치 (0-12) |
 | sheetMusicImages | [Data] | 악보 이미지 (최대 10장) |
 | sections | [SongSection] | 곡 구조 |
 | createdAt | Date | 생성 시간 |
@@ -514,7 +513,6 @@ open Musicon.xcodeproj
 
 - **곡 제목**: 필수, 빈 문자열 불가
 - **템포**: 1-300 BPM 범위
-- **카포**: 0-12 범위
 - **악보 이미지**: 최대 10장 제한
 - **콘티 제목**: 필수, 빈 문자열 불가
 - **콘티 순서**: 중복 불가
