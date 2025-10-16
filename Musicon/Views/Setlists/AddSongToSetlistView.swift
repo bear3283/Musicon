@@ -87,6 +87,10 @@ struct AddSongToSetlistView: View {
                     if let tempo = song.tempo {
                         Badge("\(tempo) BPM", style: .tempo)
                     }
+
+                    if let timeSignature = song.timeSignature {
+                        Badge(timeSignature, style: .signature)
+                    }
                 }
             }
 
@@ -99,14 +103,13 @@ struct AddSongToSetlistView: View {
     @ViewBuilder
     private func selectionIndicator(for song: Song) -> some View {
         if let index = selectedSongs.firstIndex(of: song.id) {
-            ZStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.accentGold)
-                Text("\(index + 1)")
-                    .font(.caption2)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.white)
-            }
+            Text("\(index + 1)")
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.primaryBlack)
+                .frame(width: 24, height: 24)
+                .background(Color.accentGold)
+                .clipShape(Circle())
         } else {
             Image(systemName: "circle")
                 .foregroundStyle(Color.textSecondary)
@@ -128,6 +131,9 @@ struct AddSongToSetlistView: View {
         }
         if let tempo = song.tempo {
             label += ", 템포 \(tempo) BPM"
+        }
+        if let timeSignature = song.timeSignature {
+            label += ", 박자 \(timeSignature)"
         }
         return label
     }

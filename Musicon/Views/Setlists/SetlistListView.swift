@@ -11,7 +11,6 @@ import SwiftData
 struct SetlistListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Setlist.createdAt, order: .reverse) private var setlists: [Setlist]
-    @State private var searchText = ""
     @State private var showingCreateSheet = false
     @State private var showingFilterSheet = false
     @State private var setlistToDelete: Setlist?
@@ -24,15 +23,6 @@ struct SetlistListView: View {
 
     var filteredSetlists: [Setlist] {
         var result = setlists
-
-        // 검색어 필터링 (제목, 날짜, 메모)
-        if !searchText.isEmpty {
-            result = result.filter { setlist in
-                setlist.title.localizedStandardContains(searchText) ||
-                (setlist.notes?.localizedStandardContains(searchText) ?? false) ||
-                (setlist.performanceDate != nil && formatDate(setlist.performanceDate!).localizedStandardContains(searchText))
-            }
-        }
 
         // 날짜 필터
         if let startDate = startDate {
@@ -100,7 +90,6 @@ struct SetlistListView: View {
                 }
             }
             .navigationTitle("콘티 목록")
-            .searchable(text: $searchText, prompt: "콘티 검색")
             .tint(Color.accentGold)
             .navigationDestination(for: Setlist.self) { setlist in
                 SetlistDetailView(setlist: setlist)
@@ -114,7 +103,7 @@ struct SetlistListView: View {
                         showingFilterSheet = true
                     } label: {
                         Image(systemName: hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                            .foregroundStyle(hasActiveFilters ? Color.accentGold : Color.textPrimary)
+                            .foregroundStyle(hasActiveFilters ? Color.accentGold : Color.textSecondary)
                     }
                     .accessibilityLabel("필터")
                     .accessibilityHint(hasActiveFilters ? "활성화된 필터가 있습니다. 필터를 변경하거나 제거할 수 있습니다" : "콘티 목록을 필터링합니다")

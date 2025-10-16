@@ -20,7 +20,7 @@ extension Color {
     static let surfaceColor = Color(UIColor.tertiarySystemBackground)
 
     // Text Colors
-    static let textPrimary = Color.primaryBlack
+    static let textPrimary = Color(UIColor.label)
     static let textSecondary = Color(UIColor.secondaryLabel)
     static let textTertiary = Color(UIColor.tertiaryLabel)
 
@@ -153,8 +153,8 @@ struct BadgeStyle {
     )
 
     static let primary = BadgeStyle(
-        backgroundColor: Color.primaryBlack.opacity(0.08),
-        textColor: Color.primaryBlack
+        backgroundColor: Color(UIColor.label).opacity(0.08),
+        textColor: Color(UIColor.label)
     )
 }
 

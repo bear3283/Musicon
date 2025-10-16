@@ -21,6 +21,7 @@ struct SetlistDetailView: View {
     @State private var showPageIndicator = true
     @State private var hideTask: Task<Void, Never>?
     @State private var pdfURL: URL?
+    @State private var showingExportError = false
 
     var sortedItems: [SetlistItem] {
         setlist.items.sorted { $0.order < $1.order }
@@ -217,12 +218,12 @@ struct SetlistDetailView: View {
         .tint(Color.accentGold)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: 16) {
+                HStack(spacing: 12) {
                     // 공유 버튼
                     Button {
                         exportToPDF()
                     } label: {
-                        Image(systemName: "square.and.arrow.up")
+                        Label("공유", systemImage: "square.and.arrow.up")
                     }
                     .foregroundStyle(Color.accentGold)
                     .accessibilityLabel("공유")
@@ -264,6 +265,11 @@ struct SetlistDetailView: View {
             if let pdfURL = pdfURL {
                 ShareSheet(items: [pdfURL])
             }
+        }
+        .alert("PDF 생성 실패", isPresented: $showingExportError) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("콘티를 PDF로 내보내는 데 실패했습니다. 다시 시도해주세요.")
         }
         .environment(\.editMode, isEditing ? .constant(.active) : .constant(.inactive))
     }
@@ -317,10 +323,15 @@ struct SetlistDetailView: View {
     }
 
     private func exportToPDF() {
+        print("📤 Export to PDF button tapped")
         let pdfRenderer = SetlistPDFRenderer(setlist: setlist)
         if let url = pdfRenderer.generatePDF() {
+            print("✅ PDF generated, showing share sheet")
             pdfURL = url
             showingShareSheet = true
+        } else {
+            print("❌ PDF generation failed, showing error alert")
+            showingExportError = true
         }
     }
 }
@@ -603,7 +614,27 @@ struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
+        print("📤 Creating UIActivityViewController with \(items.count) items")
         let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
+
+        // iPad에서 popover 설정
+        if let popoverController = controller.popoverPresentationController {
+            print("📤 Configuring popover for iPad")
+            popoverController.sourceView = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first { $0.isKeyWindow }?.rootViewController?.view
+            popoverController.sourceRect = CGRect(
+                x: UIScreen.main.bounds.width / 2,
+                y: UIScreen.main.bounds.height / 2,
+                width: 0,
+                height: 0
+            )
+            popoverController.permittedArrowDirections = []
+        } else {
+            print("📤 No popover configuration needed (iPhone)")
+        }
+
         return controller
     }
 
@@ -619,6 +650,8 @@ class SetlistPDFRenderer {
     }
 
     func generatePDF() -> URL? {
+        print("📄 Starting PDF generation for setlist: \(setlist.title)")
+
         let pdfMetaData = [
             kCGPDFContextCreator: "Musicon",
             kCGPDFContextTitle: setlist.title
@@ -626,150 +659,98 @@ class SetlistPDFRenderer {
         let format = UIGraphicsPDFRendererFormat()
         format.documentInfo = pdfMetaData as [String: Any]
 
-        let pageWidth = 8.5 * 72.0
-        let pageHeight = 11 * 72.0
+        // A4 가로 (Landscape)
+        let pageWidth: CGFloat = 842  // A4 가로
+        let pageHeight: CGFloat = 595  // A4 세로
         let pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
 
         let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
 
         let data = renderer.pdfData { context in
-            context.beginPage()
+            let margin: CGFloat = 30
+            let columnWidth = (pageWidth - margin * 3) / 2  // 2등분
 
-            let titleFont = UIFont.boldSystemFont(ofSize: 24)
-            let headingFont = UIFont.boldSystemFont(ofSize: 16)
+            let headerFont = UIFont.systemFont(ofSize: 11)
+            let titleFont = UIFont.boldSystemFont(ofSize: 13)
             let bodyFont = UIFont.systemFont(ofSize: 12)
-            let captionFont = UIFont.systemFont(ofSize: 10)
+            let captionFont = UIFont.systemFont(ofSize: 12)
 
-            var yPosition: CGFloat = 50
-
-            // 제목
-            let titleAttributes: [NSAttributedString.Key: Any] = [
-                .font: titleFont,
-                .foregroundColor: UIColor.black
-            ]
-            let titleText = setlist.title
-            titleText.draw(at: CGPoint(x: 50, y: yPosition), withAttributes: titleAttributes)
-            yPosition += 40
-
-            // 공연 날짜
-            if let performanceDate = setlist.performanceDate {
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateStyle = .long
-                let dateText = "공연 날짜: \(dateFormatter.string(from: performanceDate))"
-                let dateAttributes: [NSAttributedString.Key: Any] = [
-                    .font: bodyFont,
-                    .foregroundColor: UIColor.darkGray
-                ]
-                dateText.draw(at: CGPoint(x: 50, y: yPosition), withAttributes: dateAttributes)
-                yPosition += 30
-            }
-
-            // 메모
-            if let notes = setlist.notes, !notes.isEmpty {
-                let notesText = "메모: \(notes)"
-                let notesAttributes: [NSAttributedString.Key: Any] = [
-                    .font: bodyFont,
-                    .foregroundColor: UIColor.darkGray
-                ]
-                let notesRect = CGRect(x: 50, y: yPosition, width: pageWidth - 100, height: 60)
-                notesText.draw(in: notesRect, withAttributes: notesAttributes)
-                yPosition += 70
-            }
-
-            // 구분선
-            let linePath = UIBezierPath()
-            linePath.move(to: CGPoint(x: 50, y: yPosition))
-            linePath.addLine(to: CGPoint(x: pageWidth - 50, y: yPosition))
-            UIColor.lightGray.setStroke()
-            linePath.lineWidth = 1
-            linePath.stroke()
-            yPosition += 20
-
-            // 곡 목록 헤더
-            let headerText = "곡 목록 (\(setlist.items.count)곡)"
-            let headerAttributes: [NSAttributedString.Key: Any] = [
-                .font: headingFont,
-                .foregroundColor: UIColor.black
-            ]
-            headerText.draw(at: CGPoint(x: 50, y: yPosition), withAttributes: headerAttributes)
-            yPosition += 30
-
-            // 곡 목록
             let sortedItems = setlist.items.sorted { $0.order < $1.order }
-            for (index, item) in sortedItems.enumerated() {
-                // 페이지 넘김 체크
-                if yPosition > pageHeight - 100 {
-                    context.beginPage()
-                    yPosition = 50
+
+            // 슬롯 배치: 각 슬롯은 곡 또는 추가 악보를 담을 수 있음
+            var slots: [(item: SetlistItem, sheetIndex: Int)] = []
+
+            for item in sortedItems {
+                // 첫 번째 슬롯: 곡 정보 + 첫 악보
+                slots.append((item: item, sheetIndex: 0))
+
+                // 추가 악보들
+                if item.sheetMusicImages.count > 1 {
+                    for sheetIndex in 1..<item.sheetMusicImages.count {
+                        slots.append((item: item, sheetIndex: sheetIndex))
+                    }
+                }
+            }
+
+            var slotIndex = 0
+
+            while slotIndex < slots.count {
+                context.beginPage()
+
+                // 머리말 그리기 (각 페이지 상단)
+                let headerY: CGFloat = margin
+
+                // 콘티 제목과 공연 날짜를 한 줄에 표시
+                var headerText = setlist.title
+                if let performanceDate = setlist.performanceDate {
+                    headerText += " | \(formatDate(performanceDate))"
                 }
 
-                let songNumber = "\(index + 1)."
-                let songTitle = item.title
-
-                // 번호와 제목
-                let numberAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.boldSystemFont(ofSize: 14),
-                    .foregroundColor: UIColor.systemBlue
+                let headerAttributes: [NSAttributedString.Key: Any] = [
+                    .font: headerFont,
+                    .foregroundColor: UIColor.darkGray
                 ]
-                songNumber.draw(at: CGPoint(x: 50, y: yPosition), withAttributes: numberAttributes)
+                headerText.draw(at: CGPoint(x: margin, y: headerY), withAttributes: headerAttributes)
 
-                let titleAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.boldSystemFont(ofSize: 14),
-                    .foregroundColor: UIColor.black
-                ]
-                songTitle.draw(at: CGPoint(x: 80, y: yPosition), withAttributes: titleAttributes)
-                yPosition += 20
+                let contentStartY = headerY + 20
 
-                // 곡 정보 (코드, 템포, 박자)
-                var infoText = ""
-                if let key = item.key {
-                    infoText += "코드: \(key)"
-                }
-                if let tempo = item.tempo {
-                    if !infoText.isEmpty { infoText += " | " }
-                    infoText += "템포: \(tempo) BPM"
-                }
-                if let timeSignature = item.timeSignature {
-                    if !infoText.isEmpty { infoText += " | " }
-                    infoText += "박자: \(timeSignature)"
-                }
-
-                if !infoText.isEmpty {
-                    let infoAttributes: [NSAttributedString.Key: Any] = [
-                        .font: captionFont,
-                        .foregroundColor: UIColor.darkGray
-                    ]
-                    infoText.draw(at: CGPoint(x: 80, y: yPosition), withAttributes: infoAttributes)
-                    yPosition += 15
+                // 왼쪽 슬롯
+                if slotIndex < slots.count {
+                    let slot = slots[slotIndex]
+                    drawSlot(
+                        item: slot.item,
+                        sheetIndex: slot.sheetIndex,
+                        x: margin,
+                        y: contentStartY,
+                        width: columnWidth,
+                        height: pageHeight - contentStartY - margin,
+                        titleFont: titleFont,
+                        bodyFont: bodyFont,
+                        captionFont: captionFont,
+                        isFirstSheet: slot.sheetIndex == 0,
+                        setlistNotes: setlist.notes
+                    )
+                    slotIndex += 1
                 }
 
-                // 곡 구조
-                let sortedSections = item.sections.sorted { $0.order < $1.order }
-                if !sortedSections.isEmpty {
-                    let structureText = "구조: " + sortedSections.map { $0.displayLabel }.joined(separator: " → ")
-                    let structureAttributes: [NSAttributedString.Key: Any] = [
-                        .font: captionFont,
-                        .foregroundColor: UIColor.darkGray
-                    ]
-                    structureText.draw(at: CGPoint(x: 80, y: yPosition), withAttributes: structureAttributes)
-                    yPosition += 15
+                // 오른쪽 슬롯
+                if slotIndex < slots.count {
+                    let slot = slots[slotIndex]
+                    drawSlot(
+                        item: slot.item,
+                        sheetIndex: slot.sheetIndex,
+                        x: margin * 2 + columnWidth,
+                        y: contentStartY,
+                        width: columnWidth,
+                        height: pageHeight - contentStartY - margin,
+                        titleFont: titleFont,
+                        bodyFont: bodyFont,
+                        captionFont: captionFont,
+                        isFirstSheet: slot.sheetIndex == 0,
+                        setlistNotes: setlist.notes
+                    )
+                    slotIndex += 1
                 }
-
-                // 메모
-                if let notes = item.notes, !notes.isEmpty {
-                    let notesText = "메모: \(notes)"
-                    let notesAttributes: [NSAttributedString.Key: Any] = [
-                        .font: captionFont,
-                        .foregroundColor: UIColor.darkGray
-                    ]
-                    let notesRect = CGRect(x: 80, y: yPosition, width: pageWidth - 130, height: 40)
-                    notesText.draw(in: notesRect, withAttributes: notesAttributes)
-                    yPosition += 45
-                } else {
-                    yPosition += 10
-                }
-
-                yPosition += 10
             }
         }
 
@@ -777,13 +758,140 @@ class SetlistPDFRenderer {
         let fileName = "\(setlist.title).pdf"
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
 
+        print("📄 PDF data size: \(data.count) bytes")
+        print("📄 Attempting to save to: \(tempURL.path)")
+
         do {
             try data.write(to: tempURL)
+            print("✅ PDF saved successfully at: \(tempURL.path)")
             return tempURL
         } catch {
-            print("PDF 저장 실패: \(error)")
+            print("❌ PDF 저장 실패: \(error.localizedDescription)")
             return nil
         }
+    }
+
+    private func drawSlot(
+        item: SetlistItem,
+        sheetIndex: Int,
+        x: CGFloat,
+        y: CGFloat,
+        width: CGFloat,
+        height: CGFloat,
+        titleFont: UIFont,
+        bodyFont: UIFont,
+        captionFont: UIFont,
+        isFirstSheet: Bool,
+        setlistNotes: String?
+    ) {
+        var currentY = y
+
+        // 첫 번째 악보일 때만 곡 정보 표시
+        if isFirstSheet {
+            let sortedItems = item.setlist?.items.sorted { $0.order < $1.order } ?? []
+            let songNumber = (sortedItems.firstIndex(where: { $0.id == item.id }) ?? 0) + 1
+
+            // 1행: 번호 + 제목 + 기본 정보
+            var firstLine = "\(songNumber). \(item.title)"
+
+            var infoText = ""
+            if let key = item.key {
+                infoText += "코드: \(key)"
+            }
+            if let tempo = item.tempo {
+                if !infoText.isEmpty { infoText += " | " }
+                infoText += "템포: \(tempo) BPM"
+            }
+            if let timeSignature = item.timeSignature {
+                if !infoText.isEmpty { infoText += " | " }
+                infoText += "박자: \(timeSignature)"
+            }
+
+            if !infoText.isEmpty {
+                firstLine += "  (\(infoText))"
+            }
+
+            let titleAttributes: [NSAttributedString.Key: Any] = [
+                .font: titleFont,
+                .foregroundColor: UIColor.black
+            ]
+            firstLine.draw(at: CGPoint(x: x, y: currentY), withAttributes: titleAttributes)
+            currentY += 18
+
+            // 2행: 곡 구조
+            let sortedSections = item.sections.sorted { $0.order < $1.order }
+            if !sortedSections.isEmpty {
+                let structureText = "구조: " + sortedSections.map { $0.displayLabel }.joined(separator: " → ")
+                let structureAttributes: [NSAttributedString.Key: Any] = [
+                    .font: captionFont,
+                    .foregroundColor: UIColor.darkGray
+                ]
+                structureText.draw(at: CGPoint(x: x, y: currentY), withAttributes: structureAttributes)
+                currentY += 18
+            }
+
+            // 곡 정보와 악보 사이 간격
+            currentY += 5
+        }
+
+        // 악보 이미지
+        var imageEndY = currentY
+        if sheetIndex < item.sheetMusicImages.count {
+            let imageData = item.sheetMusicImages[sheetIndex]
+            if let uiImage = UIImage(data: imageData) {
+                // 콘티 메모를 위한 공간 예약 (메모가 있을 경우)
+                let notesHeight: CGFloat = (setlistNotes != nil && !setlistNotes!.isEmpty) ? 40 : 0
+                let availableHeight = y + height - currentY - notesHeight
+                let imageRect = CGRect(x: x, y: currentY, width: width, height: availableHeight)
+
+                // 이미지를 비율을 유지하면서 영역에 맞게 조정
+                let imageAspect = uiImage.size.width / uiImage.size.height
+                let rectAspect = imageRect.width / imageRect.height
+
+                var drawRect = imageRect
+                if imageAspect > rectAspect {
+                    // 이미지가 더 넓음 - 너비에 맞춤
+                    let newHeight = imageRect.width / imageAspect
+                    drawRect = CGRect(
+                        x: imageRect.minX,
+                        y: imageRect.minY,
+                        width: imageRect.width,
+                        height: newHeight
+                    )
+                } else {
+                    // 이미지가 더 높음 - 높이에 맞춤
+                    let newWidth = imageRect.height * imageAspect
+                    drawRect = CGRect(
+                        x: imageRect.minX,
+                        y: imageRect.minY,
+                        width: newWidth,
+                        height: imageRect.height
+                    )
+                }
+
+                uiImage.draw(in: drawRect)
+                imageEndY = drawRect.maxY
+            }
+        }
+
+        // 콘티 메모 (악보 이미지 밑에 표시)
+        if let notes = setlistNotes, !notes.isEmpty {
+            let notesY = imageEndY + 10
+            let notesText = "메모: \(notes)"
+            let notesAttributes: [NSAttributedString.Key: Any] = [
+                .font: captionFont,
+                .foregroundColor: UIColor.darkGray
+            ]
+            let notesRect = CGRect(x: x, y: notesY, width: width, height: 30)
+            notesText.draw(in: notesRect, withAttributes: notesAttributes)
+        }
+    }
+
+    private func formatDate(_ date: Date?) -> String {
+        guard let date = date else { return "" }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: date)
     }
 }
 

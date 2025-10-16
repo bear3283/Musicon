@@ -25,12 +25,26 @@ struct SetlistInfoSection: View {
             if isEditing {
                 // 편집 모드
                 VStack(spacing: Spacing.lg) {
-                    HStack(spacing: Spacing.md) {
-                        Text("공연 날짜")
+                    // 제목 편집
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("제목")
                             .font(.labelMedium)
                             .foregroundStyle(Color.textSecondary)
 
-                        Text("/")
+                        TextField("콘티 제목", text: $editedTitle)
+                            .font(.bodyLarge)
+                            .textFieldStyle(.plain)
+                            .padding(Spacing.md)
+                            .background(Color(.systemGray6))
+                            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                            .tint(.accentGold)
+                            .accessibilityLabel("콘티 제목")
+                            .accessibilityHint("콘티의 제목을 입력하세요")
+                    }
+
+                    // 공연 날짜
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("공연 날짜")
                             .font(.labelMedium)
                             .foregroundStyle(Color.textSecondary)
 
@@ -38,34 +52,27 @@ struct SetlistInfoSection: View {
                             .datePickerStyle(.compact)
                             .labelsHidden()
                             .tint(.accentGold)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    VStack(alignment: .leading, spacing: Spacing.sm) {
-                        Text("제목")
-                            .font(.labelMedium)
-                            .foregroundStyle(Color.textSecondary)
-                        TextField("콘티 제목", text: $editedTitle)
-                            .textFieldStyle(.roundedBorder)
-                            .tint(.accentGold)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
+                    // 메모 편집
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("메모")
                             .font(.labelMedium)
                             .foregroundStyle(Color.textSecondary)
-                        TextEditor(text: $editedNotes)
-                            .frame(height: 100)
-                            .multilineTextAlignment(.leading)
-                            .padding(Spacing.sm)
+
+                        TextField("메모를 입력하세요", text: $editedNotes, axis: .vertical)
+                            .font(.bodyLarge)
+                            .textFieldStyle(.plain)
+                            .lineLimit(1...10)
+                            .padding(Spacing.md)
                             .background(Color(.systemGray6))
-                            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
                             .tint(.accentGold)
+                            .accessibilityLabel("메모")
+                            .accessibilityHint("콘티에 대한 메모를 입력하세요")
                     }
                 }
-                .padding()
-                .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
             } else {
                 // 보기 모드
                 VStack(spacing: Spacing.lg) {

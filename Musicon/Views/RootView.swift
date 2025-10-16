@@ -16,7 +16,7 @@ struct RootView: View {
             // iPad: Split View
             iPadLayout()
         } else {
-            // iPhone: Tab View
+            // iPhone: Custom Tab View
             iPhoneLayout()
         }
     }
@@ -32,6 +32,11 @@ struct RootView: View {
             SetlistListView()
                 .tabItem {
                     Label("콘티", systemImage: "music.note.list")
+                }
+
+            SearchView()
+                .tabItem {
+                    Label("검색", systemImage: "magnifyingglass")
                 }
         }
         .tint(.accentGold)
@@ -87,6 +92,126 @@ struct SidebarView: View {
 enum SidebarTab: Hashable {
     case songs
     case setlists
+}
+
+// MARK: - Search View (iPhone)
+struct SearchView: View {
+    @Query(sort: \Song.createdAt, order: .reverse) private var songs: [Song]
+    @Query(sort: \Setlist.createdAt, order: .reverse) private var setlists: [Setlist]
+
+    @State private var selectedTab: ContentTab = .songs
+    @State private var searchText = ""
+
+    enum ContentTab: String, CaseIterable {
+        case songs = "곡"
+        case setlists = "콘티"
+    }
+
+    var filteredSongs: [Song] {
+        if searchText.isEmpty {
+            return songs
+        } else {
+            return songs.filter {
+                $0.title.localizedStandardContains(searchText) ||
+                ($0.key?.localizedStandardContains(searchText) ?? false) ||
+                ($0.tempo != nil && "\($0.tempo!)".contains(searchText)) ||
+                ($0.timeSignature?.localizedStandardContains(searchText) ?? false)
+            }
+        }
+    }
+
+    var filteredSetlists: [Setlist] {
+        if searchText.isEmpty {
+            return setlists
+        } else {
+            return setlists.filter {
+                $0.title.localizedStandardContains(searchText) ||
+                ($0.notes?.localizedStandardContains(searchText) ?? false) ||
+                ($0.performanceDate != nil && formatDate($0.performanceDate!).localizedStandardContains(searchText))
+            }
+        }
+    }
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: date)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Picker
+                Picker("선택", selection: $selectedTab) {
+                    ForEach(ContentTab.allCases, id: \.self) { tab in
+                        Text(tab.rawValue).tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+
+                // Content
+                Group {
+                    if selectedTab == .songs {
+                        songsList
+                    } else {
+                        setlistsList
+                    }
+                }
+            }
+            .navigationTitle("검색")
+            .searchable(text: $searchText, prompt: selectedTab == .songs ? "곡 검색" : "콘티 검색")
+            .tint(.accentGold)
+        }
+    }
+
+    @ViewBuilder
+    private var songsList: some View {
+        if filteredSongs.isEmpty {
+            ContentUnavailableView {
+                Label(searchText.isEmpty ? "곡이 없습니다" : "검색 결과가 없습니다", systemImage: "music.note")
+            } description: {
+                Text(searchText.isEmpty ? "곡 탭에서 곡을 추가해보세요" : "'\(searchText)'에 해당하는 곡을 찾을 수 없습니다")
+            }
+        } else {
+            List {
+                ForEach(filteredSongs) { song in
+                    NavigationLink(value: song) {
+                        SongRowView(song: song)
+                    }
+                }
+            }
+            .navigationDestination(for: Song.self) { song in
+                SongDetailView(song: song)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var setlistsList: some View {
+        if filteredSetlists.isEmpty {
+            ContentUnavailableView {
+                Label(searchText.isEmpty ? "콘티가 없습니다" : "검색 결과가 없습니다", systemImage: "music.note.list")
+            } description: {
+                Text(searchText.isEmpty ? "콘티 탭에서 콘티를 만들어보세요" : "'\(searchText)'에 해당하는 콘티를 찾을 수 없습니다")
+            }
+        } else {
+            List {
+                ForEach(filteredSetlists) { setlist in
+                    NavigationLink(value: setlist) {
+                        SetlistRowView(setlist: setlist)
+                    }
+                }
+            }
+            .navigationDestination(for: Setlist.self) { setlist in
+                SetlistDetailView(setlist: setlist)
+            }
+            .navigationDestination(for: Song.self) { song in
+                SongDetailView(song: song)
+            }
+        }
+    }
 }
 
 // MARK: - Content Views

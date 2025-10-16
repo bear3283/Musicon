@@ -105,18 +105,14 @@ struct SetlistItemInfoSection: View {
             Text("곡 정보")
                 .font(.titleMedium)
 
-            // 기본 정보 표시
-            VStack(spacing: Spacing.md) {
-                // 코드 설정
-                VStack(alignment: .leading, spacing: Spacing.sm) {
-                    HStack {
+            // 가로 배치된 피커 (곡 편집과 동일한 형태)
+            VStack(spacing: Spacing.lg) {
+                HStack(spacing: 0) {
+                    VStack(spacing: 4) {
                         Text("코드")
-                            .font(.labelLarge)
+                            .font(.labelMedium)
                             .foregroundStyle(Color.textSecondary)
-                        Spacer()
-                    }
 
-                    HStack(spacing: 0) {
                         Picker("코드", selection: $editedKey) {
                             ForEach(keys, id: \.self) { keyOption in
                                 Text(keyOption).tag(keyOption)
@@ -124,7 +120,6 @@ struct SetlistItemInfoSection: View {
                         }
                         .pickerStyle(.wheel)
                         .labelsHidden()
-                        .frame(height: 120)
                         .tint(.accentGold)
                         .onChange(of: editedKey) { _, _ in
                             saveChanges()
@@ -133,21 +128,13 @@ struct SetlistItemInfoSection: View {
                         .accessibilityValue(editedKey)
                         .accessibilityHint("이 콘티에서 사용할 코드를 선택하세요")
                     }
-                    .padding(.vertical, Spacing.sm)
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
-                }
+                    .frame(maxWidth: .infinity)
 
-                // 템포 설정
-                VStack(alignment: .leading, spacing: Spacing.sm) {
-                    HStack {
-                        Text("템포")
-                            .font(.labelLarge)
+                    VStack(spacing: 4) {
+                        Text("템포 (BPM)")
+                            .font(.labelMedium)
                             .foregroundStyle(Color.textSecondary)
-                        Spacer()
-                    }
 
-                    HStack(spacing: 0) {
                         Picker("템포", selection: $editedTempo) {
                             ForEach(tempoOptions, id: \.self) { bpm in
                                 Text("\(bpm)").tag(bpm)
@@ -155,7 +142,6 @@ struct SetlistItemInfoSection: View {
                         }
                         .pickerStyle(.wheel)
                         .labelsHidden()
-                        .frame(height: 120)
                         .tint(.accentGold)
                         .onChange(of: editedTempo) { _, _ in
                             saveChanges()
@@ -164,21 +150,13 @@ struct SetlistItemInfoSection: View {
                         .accessibilityValue("\(editedTempo) BPM")
                         .accessibilityHint("이 콘티에서 사용할 템포를 선택하세요")
                     }
-                    .padding(.vertical, Spacing.sm)
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
-                }
+                    .frame(maxWidth: .infinity)
 
-                // 박자 설정
-                VStack(alignment: .leading, spacing: Spacing.sm) {
-                    HStack {
+                    VStack(spacing: 4) {
                         Text("박자")
-                            .font(.labelLarge)
+                            .font(.labelMedium)
                             .foregroundStyle(Color.textSecondary)
-                        Spacer()
-                    }
 
-                    HStack(spacing: 0) {
                         Picker("박자", selection: $editedTimeSignature) {
                             ForEach(timeSignatures, id: \.self) { signature in
                                 Text(signature).tag(signature)
@@ -186,7 +164,6 @@ struct SetlistItemInfoSection: View {
                         }
                         .pickerStyle(.wheel)
                         .labelsHidden()
-                        .frame(height: 120)
                         .tint(.accentGold)
                         .onChange(of: editedTimeSignature) { _, _ in
                             saveChanges()
@@ -195,10 +172,13 @@ struct SetlistItemInfoSection: View {
                         .accessibilityValue(editedTimeSignature)
                         .accessibilityHint("이 콘티에서 사용할 박자를 선택하세요")
                     }
-                    .padding(.vertical, Spacing.sm)
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                    .frame(maxWidth: .infinity)
                 }
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, Spacing.md)
+                .frame(height: 140)
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
             }
         }
         .onAppear {
@@ -271,66 +251,128 @@ struct SetlistItemStructureSection: View {
     let item: SetlistItem
     @Binding var isEditing: Bool
 
-    @State private var showingAddSection = false
+    @State private var editingSection: SetlistItemSection?
+    @State private var deletingSection: SetlistItemSection?
 
     var sortedSections: [SetlistItemSection] {
         item.sections.sorted { $0.order < $1.order }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
-                Text("곡 구조")
-                    .font(.titleMedium)
+        VStack(alignment: .leading, spacing: 12) {
+            // 헤더: 제목 + 빠른 추가 버튼 (곡 편집과 동일한 형태)
+            HStack(spacing: 20) {
+                Text("구조")
+                    .font(.headline)
 
-                Spacer()
-
-                if isEditing {
-                    Button {
-                        showingAddSection = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundStyle(Color.accentGold)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(SectionType.allCases.filter { $0 != .custom }) { type in
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                    addQuickSection(type: type)
+                                }
+                            } label: {
+                                Text(type.rawValue)
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.blue)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.blue.opacity(0.1))
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("\(type.displayName) 섹션 추가")
+                            .accessibilityHint("곡 구조에 \(type.displayName) 섹션을 추가합니다")
+                        }
                     }
                 }
             }
 
             if sortedSections.isEmpty {
-                Text("구조가 없습니다")
-                    .foregroundStyle(Color.textSecondary)
-                    .font(.bodyMedium)
-            } else {
-                FlowLayout(spacing: 6) {
-                    ForEach(sortedSections) { section in
-                        HStack(spacing: 3) {
-                            Text(section.displayLabel)
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color(.systemGray5))
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .stroke(Color(.systemGray4), lineWidth: 1)
-                                )
+                // 빈 상태
+                VStack(spacing: 12) {
+                    Image(systemName: "music.note.list")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
 
-                            if isEditing {
-                                Button {
-                                    deleteSection(section)
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.red)
-                                        .font(.caption)
+                    Text("곡 구조가 없습니다")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Text("섹션을 추가하여 곡의 구조를 만들어보세요")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+            } else {
+                // 섹션 플로우 (자동 줄바꿈)
+                FlowLayout(spacing: 6) {
+                    ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
+                        HStack(spacing: 3) {
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    editingSection = section
                                 }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(section.displayLabel)
+                                        .font(.callout)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.primary)
+
+                                    if isEditing {
+                                        Button {
+                                            deletingSection = section
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.caption2)
+                                                .foregroundStyle(.red)
+                                        }
+                                        .accessibilityLabel("\(section.displayLabel) 섹션 삭제")
+                                    }
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color(.systemGray6))
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(section.displayLabel)
+                            .accessibilityHint("섹션을 편집하려면 누르세요")
+
+                            if index < sortedSections.count - 1 {
+                                Image(systemName: "arrow.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
                 }
+                .padding(.vertical, 4)
             }
         }
-        .sheet(isPresented: $showingAddSection) {
-            AddSetlistItemSectionView(item: item)
+        .sheet(item: $editingSection) { section in
+            EditSetlistItemSectionLabelView(section: section)
+        }
+        .alert("섹션 삭제", isPresented: Binding(
+            get: { deletingSection != nil },
+            set: { if !$0 { deletingSection = nil } }
+        )) {
+            Button("취소", role: .cancel) {
+                deletingSection = nil
+            }
+            Button("삭제", role: .destructive) {
+                if let section = deletingSection {
+                    deleteSection(section)
+                    deletingSection = nil
+                }
+            }
+        } message: {
+            Text("이 섹션을 삭제하시겠습니까?")
         }
     }
 
@@ -348,6 +390,21 @@ struct SetlistItemStructureSection: View {
             try? modelContext.save()
         }
     }
+
+    private func addQuickSection(type: SectionType) {
+        let section = SetlistItemSection(
+            type: type,
+            order: item.sections.count,
+            customLabel: nil
+        )
+        section.setlistItem = item
+        item.sections.append(section)
+
+        modelContext.insert(section)
+        item.setlist?.updatedAt = Date()
+
+        try? modelContext.save()
+    }
 }
 
 // 콘티 아이템 악보 섹션
@@ -364,17 +421,15 @@ struct SetlistItemSheetMusicSection: View {
                     .foregroundStyle(Color.textSecondary)
                     .font(.bodyMedium)
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Spacing.md) {
-                        ForEach(Array(item.sheetMusicImages.enumerated()), id: \.offset) { index, imageData in
-                            if let uiImage = UIImage(data: imageData) {
-                                Image(uiImage: uiImage)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(height: 400)
-                                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
-                                    .shadow(radius: 2)
-                            }
+                VStack(spacing: Spacing.md) {
+                    ForEach(Array(item.sheetMusicImages.enumerated()), id: \.offset) { index, imageData in
+                        if let uiImage = UIImage(data: imageData) {
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: .infinity)
+                                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                                .shadow(radius: 2)
                         }
                     }
                 }
@@ -383,33 +438,57 @@ struct SetlistItemSheetMusicSection: View {
     }
 }
 
-// 섹션 추가 뷰
-struct AddSetlistItemSectionView: View {
+// 섹션 라벨 편집 뷰
+struct EditSetlistItemSectionLabelView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    let item: SetlistItem
-
-    @State private var selectedType: SectionType = .intro
-    @State private var customLabel = ""
+    let section: SetlistItemSection
+    @State private var customLabel: String = ""
+    @State private var showingDeleteAlert = false
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("섹션 타입") {
-                    Picker("타입", selection: $selectedType) {
-                        ForEach(SectionType.allCases, id: \.self) { type in
-                            Text(type.rawValue).tag(type)
-                        }
+                    HStack {
+                        Text(section.type.displayName)
+                            .font(.headline)
+                        Spacer()
+                        Text("(\(section.type.rawValue))")
+                            .foregroundStyle(.secondary)
                     }
-                    .pickerStyle(.wheel)
                 }
 
-                Section("커스텀 라벨 (선택사항)") {
-                    TextField("예: 1, 2, A, B", text: $customLabel)
+                Section("번호 (선택사항)") {
+                    TextField("예: 1, 2, 3...", text: $customLabel)
+                        .keyboardType(.numberPad)
+                }
+
+                Section {
+                    HStack {
+                        Text("표시될 이름:")
+                        Spacer()
+                        Text(previewLabel)
+                            .font(.headline)
+                            .foregroundStyle(.blue)
+                    }
+                } header: {
+                    Text("미리보기")
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        showingDeleteAlert = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "trash")
+                            Text("섹션 삭제")
+                        }
+                    }
                 }
             }
-            .navigationTitle("섹션 추가")
+            .navigationTitle("섹션 수정")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -419,28 +498,60 @@ struct AddSetlistItemSectionView: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("추가") {
-                        addSection()
+                    Button("완료") {
+                        saveLabel()
                     }
-                    .fontWeight(.semibold)
                 }
+            }
+            .alert("섹션 삭제", isPresented: $showingDeleteAlert) {
+                Button("취소", role: .cancel) { }
+                Button("삭제", role: .destructive) {
+                    deleteSection()
+                }
+            } message: {
+                Text("이 섹션을 삭제하시겠습니까?")
+            }
+            .onAppear {
+                customLabel = section.customLabel ?? ""
             }
         }
     }
 
-    private func addSection() {
-        let newSection = SetlistItemSection(
-            type: selectedType,
-            order: item.sections.count,
-            customLabel: customLabel.isEmpty ? nil : customLabel
-        )
-        newSection.setlistItem = item
+    private var previewLabel: String {
+        if customLabel.isEmpty {
+            return section.type.rawValue
+        } else {
+            return "\(section.type.rawValue)\(customLabel)"
+        }
+    }
 
-        item.sections.append(newSection)
-        modelContext.insert(newSection)
+    private func saveLabel() {
+        section.customLabel = customLabel.isEmpty ? nil : customLabel
+        section.setlistItem?.setlist?.updatedAt = Date()
 
-        item.setlist?.updatedAt = Date()
         try? modelContext.save()
+        dismiss()
+    }
+
+    private func deleteSection() {
+        guard let item = section.setlistItem else {
+            dismiss()
+            return
+        }
+
+        if let index = item.sections.firstIndex(where: { $0.id == section.id }) {
+            item.sections.remove(at: index)
+            modelContext.delete(section)
+
+            // 순서 재정렬
+            let sortedSections = item.sections.sorted { $0.order < $1.order }
+            for (index, section) in sortedSections.enumerated() {
+                section.order = index
+            }
+
+            item.setlist?.updatedAt = Date()
+            try? modelContext.save()
+        }
 
         dismiss()
     }

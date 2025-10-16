@@ -13,6 +13,7 @@ struct SongInfoSection: View {
     let song: Song
     @Binding var isEditing: Bool
 
+    @State private var editedTitle: String = ""
     @State private var editedKey: String = ""
     @State private var editedTempo: Int = 120
     @State private var editedTimeSignature: String = "4/4"
@@ -26,9 +27,26 @@ struct SongInfoSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             if isEditing {
-                // 편집 모드: 제목만
+                // 편집 모드: 제목 편집 가능
                 Text("곡 정보")
                     .font(.titleMedium)
+
+                // 제목 편집
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text("제목")
+                        .font(.labelMedium)
+                        .foregroundStyle(Color.textSecondary)
+
+                    TextField("곡 제목", text: $editedTitle)
+                        .font(.bodyLarge)
+                        .textFieldStyle(.plain)
+                        .padding(Spacing.md)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                        .tint(.accentGold)
+                        .accessibilityLabel("곡 제목")
+                        .accessibilityHint("곡의 제목을 입력하세요")
+                }
 
                 // 편집 모드
                 VStack(spacing: Spacing.lg) {
@@ -113,6 +131,7 @@ struct SongInfoSection: View {
             }
         }
         .onAppear {
+            editedTitle = song.title
             editedKey = song.key ?? "C"
             editedTempo = song.tempo ?? 120
             editedTimeSignature = song.timeSignature ?? "4/4"
@@ -126,6 +145,10 @@ struct SongInfoSection: View {
     }
 
     private func saveSongInfo() {
+        let trimmedTitle = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedTitle.isEmpty {
+            song.title = trimmedTitle
+        }
         song.key = editedKey
         song.tempo = editedTempo
         song.timeSignature = editedTimeSignature

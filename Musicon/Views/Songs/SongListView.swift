@@ -11,7 +11,6 @@ import SwiftData
 struct SongListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Song.createdAt, order: .reverse) private var songs: [Song]
-    @State private var searchText = ""
     @State private var showingCreateSheet = false
     @State private var showingFilterSheet = false
     @State private var songToDelete: Song?
@@ -24,16 +23,6 @@ struct SongListView: View {
 
     var filteredSongs: [Song] {
         var result = songs
-
-        // 검색어 필터링 (제목, 코드, 템포, 박자)
-        if !searchText.isEmpty {
-            result = result.filter { song in
-                song.title.localizedStandardContains(searchText) ||
-                (song.key?.localizedStandardContains(searchText) ?? false) ||
-                (song.tempo != nil && "\(song.tempo!)".contains(searchText)) ||
-                (song.timeSignature?.localizedStandardContains(searchText) ?? false)
-            }
-        }
 
         // 코드 필터
         if !selectedKeys.isEmpty {
@@ -118,7 +107,6 @@ struct SongListView: View {
                 }
             }
             .navigationTitle("곡 목록")
-            .searchable(text: $searchText, prompt: "곡 검색")
             .tint(Color.accentGold)
             .navigationDestination(for: Song.self) { song in
                 SongDetailView(song: song)
@@ -129,7 +117,7 @@ struct SongListView: View {
                         showingFilterSheet = true
                     } label: {
                         Image(systemName: hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                            .foregroundStyle(hasActiveFilters ? Color.accentGold : Color.textPrimary)
+                            .foregroundStyle(hasActiveFilters ? Color.accentGold : Color.textSecondary)
                     }
                     .accessibilityLabel("필터")
                     .accessibilityHint(hasActiveFilters ? "활성화된 필터가 있습니다. 필터를 변경하거나 제거할 수 있습니다" : "곡 목록을 필터링합니다")
