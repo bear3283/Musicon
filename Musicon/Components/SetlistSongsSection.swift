@@ -65,13 +65,13 @@ struct SetlistSongsSection: View {
                 showingAddSong = true
             } label: {
                 HStack {
-                    Image(systemName: "plus.circle.fill")
+                    Image(systemName: "plus.circle")
                     Text("곡 추가")
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(.blue.opacity(0.1))
-                .foregroundStyle(.blue)
+                .background(Color.accentGold.opacity(0.1))
+                .foregroundStyle(Color.accentGold)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
@@ -133,7 +133,7 @@ struct SetlistSongRow: View {
                             .font(.caption)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(.blue.opacity(0.2))
+                            .background(Color.codeBlue.opacity(0.2))
                             .clipShape(Capsule())
                     }
 
@@ -142,7 +142,7 @@ struct SetlistSongRow: View {
                             .font(.caption)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(.green.opacity(0.2))
+                            .background(Color.tempoGreen.opacity(0.2))
                             .clipShape(Capsule())
                     }
 
@@ -151,7 +151,7 @@ struct SetlistSongRow: View {
                             .font(.caption)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(.orange.opacity(0.2))
+                            .background(Color.signatureOrange.opacity(0.2))
                             .clipShape(Capsule())
                     }
 

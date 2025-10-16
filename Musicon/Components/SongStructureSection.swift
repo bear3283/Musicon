@@ -30,20 +30,32 @@ struct SongStructureSection: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        ForEach(SectionType.allCases.filter { $0 != .custom }) { type in
+                        ForEach(SectionType.allCases) { type in
                             Button {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                    addQuickSection(type: type)
+                                if type == .custom {
+                                    showingAddSection = true
+                                } else {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                        addQuickSection(type: type)
+                                    }
                                 }
                             } label: {
-                                Text(type.rawValue)
-                                    .font(.callout)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.blue)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.blue.opacity(0.1))
-                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                Group {
+                                    if type == .custom {
+                                        Image(systemName: "pencil")
+                                            .font(.callout)
+                                            .fontWeight(.semibold)
+                                    } else {
+                                        Text(type.rawValue)
+                                            .font(.callout)
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                                .foregroundStyle(Color.accentGold)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.accentGold.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("\(type.displayName) 섹션 추가")
@@ -73,53 +85,55 @@ struct SongStructureSection: View {
                 .padding(.vertical, 32)
             } else {
                 // 섹션 플로우 (자동 줄바꿈)
-                FlowLayout(spacing: 6) {
+                FlowLayout(spacing: Spacing.md) {
                     ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
-                        HStack(spacing: 3) {
+                        HStack(spacing: Spacing.sm) {
+                            // 섹션 버튼 (박스 스타일, 색상 적용)
                             Button {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     editingSection = section
                                 }
                             } label: {
-                                HStack(spacing: 4) {
-                                    Text(section.displayLabel)
-                                        .font(.callout)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(.primary)
-
-                                    if isEditing {
-                                        Button {
-                                            deletingSection = section
-                                        } label: {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .font(.caption2)
-                                                .foregroundStyle(.red)
-                                        }
-                                        .accessibilityLabel("\(section.displayLabel) 섹션 삭제")
-                                    }
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                Text(section.displayLabel)
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(section.type.color)
+                                    .padding(.horizontal, Spacing.md)
+                                    .padding(.vertical, Spacing.sm)
+                                    .background(section.type.color.opacity(0.15))
+                                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(section.displayLabel)
                             .accessibilityHint("섹션을 편집하려면 누르세요")
 
+                            // 삭제 버튼 (편집 모드에서만, 섹션과 분리)
+                            if isEditing {
+                                Button {
+                                    deletingSection = section
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.body)
+                                        .foregroundStyle(.red)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("\(section.displayLabel) 섹션 삭제")
+                            }
+
+                            // 화살표 (마지막이 아닐 때)
                             if index < sortedSections.count - 1 {
                                 Image(systemName: "arrow.right")
-                                    .font(.caption)
+                                    .font(.callout)
                                     .foregroundStyle(.secondary)
                             }
                         }
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, Spacing.sm)
             }
         }
         .sheet(isPresented: $showingAddSection) {
-            AddSectionView(song: song)
+            AddSectionView(song: song, initialType: .custom)
         }
         .sheet(item: $editingSection) { section in
             EditSectionLabelView(section: section)
@@ -191,19 +205,28 @@ struct EditSectionLabelView: View {
     @Environment(\.dismiss) private var dismiss
 
     let section: SongSection
+    @State private var selectedType: SectionType = .verse
     @State private var customLabel: String = ""
+    @State private var customName: String = ""
     @State private var showingDeleteAlert = false
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("섹션 타입") {
-                    HStack {
-                        Text(section.type.displayName)
-                            .font(.headline)
-                        Spacer()
-                        Text("(\(section.type.rawValue))")
-                            .foregroundStyle(.secondary)
+                    Picker("타입", selection: $selectedType) {
+                        ForEach(SectionType.allCases) { type in
+                            Text("\(type.displayName) (\(type.rawValue))").tag(type)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                // Custom 타입일 때 이름 입력
+                if selectedType == .custom {
+                    Section("커스텀 이름") {
+                        TextField("예: Drop, Tag, Vamp...", text: $customName)
+                            .autocapitalization(.none)
                     }
                 }
 
@@ -218,7 +241,7 @@ struct EditSectionLabelView: View {
                         Spacer()
                         Text(previewLabel)
                             .font(.headline)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Color.accentGold)
                     }
                 } header: {
                     Text("미리보기")
@@ -230,6 +253,7 @@ struct EditSectionLabelView: View {
                     } label: {
                         HStack {
                             Image(systemName: "trash")
+                                .foregroundStyle(.red)
                             Text("섹션 삭제")
                         }
                     }
@@ -259,21 +283,27 @@ struct EditSectionLabelView: View {
                 Text("이 섹션을 삭제하시겠습니까?")
             }
             .onAppear {
+                selectedType = section.type
                 customLabel = section.customLabel ?? ""
+                customName = section.customName ?? ""
             }
         }
     }
 
     private var previewLabel: String {
+        let baseName = selectedType == .custom && !customName.isEmpty ? customName : selectedType.rawValue
+
         if customLabel.isEmpty {
-            return section.type.rawValue
+            return baseName
         } else {
-            return "\(section.type.rawValue)\(customLabel)"
+            return "\(baseName)\(customLabel)"
         }
     }
 
     private func saveLabel() {
+        section.type = selectedType
         section.customLabel = customLabel.isEmpty ? nil : customLabel
+        section.customName = customName.isEmpty ? nil : customName
         section.song?.updatedAt = Date()
 
         try? modelContext.save()

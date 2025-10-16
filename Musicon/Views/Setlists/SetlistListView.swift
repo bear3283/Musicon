@@ -14,6 +14,7 @@ struct SetlistListView: View {
     @State private var showingCreateSheet = false
     @State private var showingFilterSheet = false
     @State private var setlistToDelete: Setlist?
+    @State private var searchText = ""
 
     // 필터 상태
     @State private var startDate: Date?
@@ -21,8 +22,23 @@ struct SetlistListView: View {
     @State private var minSongCount: Int?
     @State private var maxSongCount: Int?
 
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: date)
+    }
+
     var filteredSetlists: [Setlist] {
         var result = setlists
+
+        // 검색 필터
+        if !searchText.isEmpty {
+            result = result.filter {
+                $0.title.localizedStandardContains(searchText) ||
+                ($0.notes?.localizedStandardContains(searchText) ?? false) ||
+                ($0.performanceDate != nil && formatDate($0.performanceDate!).localizedStandardContains(searchText))
+            }
+        }
 
         // 날짜 필터
         if let startDate = startDate {
@@ -55,12 +71,6 @@ struct SetlistListView: View {
         startDate != nil || endDate != nil || minSongCount != nil || maxSongCount != nil
     }
 
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: date)
-    }
-
     var body: some View {
         NavigationStack {
             Group {
@@ -90,6 +100,7 @@ struct SetlistListView: View {
                 }
             }
             .navigationTitle("콘티 목록")
+            .searchable(text: $searchText, prompt: "콘티 검색")
             .tint(Color.accentGold)
             .navigationDestination(for: Setlist.self) { setlist in
                 SetlistDetailView(setlist: setlist)
@@ -113,7 +124,7 @@ struct SetlistListView: View {
                     Button {
                         showingCreateSheet = true
                     } label: {
-                        Image(systemName: "plus.circle.fill")
+                        Image(systemName: "plus.circle")
                             .font(.title3)
                             .foregroundStyle(Color.accentGold)
                     }

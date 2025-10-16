@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct SongListView: View {
     @Environment(\.modelContext) private var modelContext
@@ -14,6 +15,7 @@ struct SongListView: View {
     @State private var showingCreateSheet = false
     @State private var showingFilterSheet = false
     @State private var songToDelete: Song?
+    @State private var searchText = ""
 
     // 필터 상태
     @State private var selectedKeys: Set<String> = []
@@ -23,6 +25,16 @@ struct SongListView: View {
 
     var filteredSongs: [Song] {
         var result = songs
+
+        // 검색 필터
+        if !searchText.isEmpty {
+            result = result.filter {
+                $0.title.localizedStandardContains(searchText) ||
+                ($0.key?.localizedStandardContains(searchText) ?? false) ||
+                ($0.tempo != nil && "\($0.tempo!)".contains(searchText)) ||
+                ($0.timeSignature?.localizedStandardContains(searchText) ?? false)
+            }
+        }
 
         // 코드 필터
         if !selectedKeys.isEmpty {
@@ -107,6 +119,7 @@ struct SongListView: View {
                 }
             }
             .navigationTitle("곡 목록")
+            .searchable(text: $searchText, prompt: "곡 검색")
             .tint(Color.accentGold)
             .navigationDestination(for: Song.self) { song in
                 SongDetailView(song: song)
@@ -127,7 +140,7 @@ struct SongListView: View {
                     Button {
                         showingCreateSheet = true
                     } label: {
-                        Image(systemName: "plus.circle.fill")
+                        Image(systemName: "plus.circle")
                             .font(.title3)
                             .foregroundStyle(Color.accentGold)
                     }
@@ -237,82 +250,130 @@ struct CreateSongView: View {
     @State private var tempo = 120
     @State private var timeSignature = "4/4"
 
+    // 곡 구조
+    @State private var sections: [TempSection] = []
+    @State private var showingAddSection = false
+    @State private var editingSection: TempSection?
+    @State private var deletingSection: TempSection?
+
+    // 악보
+    @State private var selectedItems: [PhotosPickerItem] = []
+    @State private var sheetMusicImages: [Data] = []
+    @State private var showAddImageOptions = false
+    @State private var showPhotosPicker = false
+    @State private var showFileImporter = false
+    @State private var isLoadingImages = false
+    @State private var showingImageLimitError = false
+
+    // 메모
+    @State private var notes = ""
+    @FocusState private var isNotesFocused: Bool
+
     @State private var showingValidationError = false
     @State private var validationErrorMessage = ""
 
     let keys = [
-        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
+        "C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B"
     ]
     let tempoOptions = Array(stride(from: 40, through: 200, by: 5))
     let timeSignatures = ["4/4", "3/4", "6/8", "2/4", "5/4", "7/8", "12/8"]
 
+    var sortedSections: [TempSection] {
+        sections.sorted { $0.order < $1.order }
+    }
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section("기본 정보") {
-                    TextField("곡 제목", text: $title)
-                        .accessibilityLabel("곡 제목")
-                        .accessibilityHint("곡의 이름을 입력하세요")
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    // 기본 정보
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        Text("기본 정보")
+                            .font(.titleMedium)
 
-                Section("음악 정보") {
-                    HStack(spacing: 0) {
-                        VStack(spacing: 4) {
-                            Text("코드")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            Picker("코드", selection: $key) {
-                                ForEach(keys, id: \.self) { keyOption in
-                                    Text(keyOption).tag(keyOption)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .labelsHidden()
-                            .accessibilityLabel("코드")
-                            .accessibilityValue(key)
-                            .accessibilityHint("곡의 코드를 선택하세요")
-                        }
-                        .frame(maxWidth: .infinity)
-
-                        VStack(spacing: 4) {
-                            Text("템포 (BPM)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            Picker("템포", selection: $tempo) {
-                                ForEach(tempoOptions, id: \.self) { bpm in
-                                    Text("\(bpm)").tag(bpm)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .labelsHidden()
-                            .accessibilityLabel("템포")
-                            .accessibilityValue("\(tempo) BPM")
-                            .accessibilityHint("곡의 템포를 선택하세요")
-                        }
-                        .frame(maxWidth: .infinity)
-
-                        VStack(spacing: 4) {
-                            Text("박자")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            Picker("박자", selection: $timeSignature) {
-                                ForEach(timeSignatures, id: \.self) { signature in
-                                    Text(signature).tag(signature)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .labelsHidden()
-                            .accessibilityLabel("박자")
-                            .accessibilityValue(timeSignature)
-                            .accessibilityHint("곡의 박자를 선택하세요")
-                        }
-                        .frame(maxWidth: .infinity)
+                        TextField("곡 제목", text: $title)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityLabel("곡 제목")
+                            .accessibilityHint("곡의 이름을 입력하세요")
                     }
-                    .frame(height: 140)
+
+                    Divider()
+
+                    // 음악 정보
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        Text("음악 정보")
+                            .font(.titleMedium)
+
+                        HStack(spacing: 0) {
+                            VStack(spacing: Spacing.xs) {
+                                Text("코드")
+                                    .font(.labelSmall)
+                                    .foregroundStyle(.secondary)
+
+                                Picker("코드", selection: $key) {
+                                    ForEach(keys, id: \.self) { keyOption in
+                                        Text(keyOption).tag(keyOption)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .labelsHidden()
+                                .accessibilityLabel("코드")
+                            }
+                            .frame(maxWidth: .infinity)
+
+                            VStack(spacing: Spacing.xs) {
+                                Text("템포")
+                                    .font(.labelSmall)
+                                    .foregroundStyle(.secondary)
+
+                                Picker("템포", selection: $tempo) {
+                                    ForEach(tempoOptions, id: \.self) { bpm in
+                                        Text("\(bpm)").tag(bpm)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .labelsHidden()
+                                .accessibilityLabel("템포")
+                            }
+                            .frame(maxWidth: .infinity)
+
+                            VStack(spacing: Spacing.xs) {
+                                Text("박자")
+                                    .font(.labelSmall)
+                                    .foregroundStyle(.secondary)
+
+                                Picker("박자", selection: $timeSignature) {
+                                    ForEach(timeSignatures, id: \.self) { signature in
+                                        Text(signature).tag(signature)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .labelsHidden()
+                                .accessibilityLabel("박자")
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .frame(height: 120)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                    }
+
+                    Divider()
+
+                    // 곡 구조
+                    structureSection
+
+                    Divider()
+
+                    // 악보
+                    sheetMusicSection
+
+                    Divider()
+
+                    // 메모
+                    notesSection
                 }
+                .padding()
             }
             .navigationTitle("새 곡 추가")
             .navigationBarTitleDisplayMode(.inline)
@@ -343,17 +404,285 @@ struct CreateSongView: View {
         }
     }
 
+    // MARK: - Section Views
+
+    var structureSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: 20) {
+                Text("구조")
+                    .font(.titleMedium)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Spacing.md) {
+                        ForEach(SectionType.allCases) { type in
+                            Button {
+                                if type == .custom {
+                                    showingAddSection = true
+                                } else {
+                                    addQuickSection(type: type)
+                                }
+                            } label: {
+                                Group {
+                                    if type == .custom {
+                                        Image(systemName: "pencil")
+                                            .font(.callout)
+                                            .fontWeight(.semibold)
+                                    } else {
+                                        Text(type.rawValue)
+                                            .font(.callout)
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                                .foregroundStyle(Color.accentGold)
+                                .padding(.horizontal, Spacing.sm)
+                                .padding(.vertical, Spacing.xs)
+                                .background(Color.accentGold.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+
+            if sortedSections.isEmpty {
+                VStack(spacing: Spacing.md) {
+                    Image(systemName: "music.note.list")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+
+                    Text("섹션을 추가하여 곡의 구조를 만들어보세요")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Spacing.lg)
+            } else {
+                FlowLayout(spacing: Spacing.md) {
+                    ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
+                        HStack(spacing: Spacing.sm) {
+                            Button {
+                                editingSection = section
+                            } label: {
+                                Text(section.displayLabel)
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(section.type.color)
+                                    .padding(.horizontal, Spacing.md)
+                                    .padding(.vertical, Spacing.sm)
+                                    .background(section.type.color.opacity(0.15))
+                                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                deletingSection = section
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.body)
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(.plain)
+
+                            if index < sortedSections.count - 1 {
+                                Image(systemName: "arrow.right")
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+                .padding(.vertical, Spacing.sm)
+            }
+        }
+        .sheet(isPresented: $showingAddSection) {
+            CreateSectionView(sections: $sections)
+        }
+        .sheet(item: $editingSection) { section in
+            EditTempSectionView(section: section, sections: $sections)
+        }
+        .alert("섹션 삭제", isPresented: Binding(
+            get: { deletingSection != nil },
+            set: { if !$0 { deletingSection = nil } }
+        )) {
+            Button("취소", role: .cancel) {
+                deletingSection = nil
+            }
+            Button("삭제", role: .destructive) {
+                if let section = deletingSection {
+                    sections.removeAll { $0.id == section.id }
+                    // 순서 재정렬
+                    for (index, sec) in sortedSections.enumerated() {
+                        if let idx = sections.firstIndex(where: { $0.id == sec.id }) {
+                            sections[idx].order = index
+                        }
+                    }
+                    deletingSection = nil
+                }
+            }
+        } message: {
+            Text("이 섹션을 삭제하시겠습니까?")
+        }
+    }
+
+    var sheetMusicSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("악보")
+                .font(.titleMedium)
+
+            if sheetMusicImages.isEmpty {
+                VStack(spacing: Spacing.md) {
+                    Image(systemName: "music.note.list")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+
+                    Text("악보 이미지를 추가할 수 있습니다")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Spacing.lg)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Spacing.md) {
+                        ForEach(Array(sheetMusicImages.enumerated()), id: \.offset) { index, imageData in
+                            if let uiImage = UIImage(data: imageData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(height: 200)
+                                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                                    .overlay(alignment: .topTrailing) {
+                                        Button {
+                                            sheetMusicImages.remove(at: index)
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundStyle(.white)
+                                                .background(Circle().fill(.red))
+                                        }
+                                        .padding(4)
+                                    }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Button {
+                showAddImageOptions = true
+            } label: {
+                HStack {
+                    if isLoadingImages {
+                        ProgressView()
+                        Text("이미지 로딩 중...")
+                    } else {
+                        Image(systemName: "photo.on.rectangle.angled")
+                        Text("악보 추가")
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.accentGold.opacity(0.1))
+                .foregroundStyle(Color.accentGold)
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+            }
+            .disabled(isLoadingImages)
+        }
+        .confirmationDialog("악보 이미지 추가", isPresented: $showAddImageOptions) {
+            Button("사진 라이브러리에서 선택") {
+                showPhotosPicker = true
+            }
+            Button("파일에서 선택") {
+                showFileImporter = true
+            }
+            Button("취소", role: .cancel) {}
+        }
+        .sheet(isPresented: $showPhotosPicker) {
+            CreatePhotoPickerView(selectedItems: $selectedItems, sheetMusicImages: $sheetMusicImages, isLoadingImages: $isLoadingImages, showingImageLimitError: $showingImageLimitError)
+        }
+        .fileImporter(
+            isPresented: $showFileImporter,
+            allowedContentTypes: [.image],
+            allowsMultipleSelection: true
+        ) { result in
+            Task {
+                await loadImagesFromFiles(result: result)
+            }
+        }
+        .alert("이미지 제한 초과", isPresented: $showingImageLimitError) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("악보 이미지는 최대 10장까지 추가할 수 있습니다.")
+        }
+    }
+
+    var notesSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("메모")
+                .font(.titleMedium)
+
+            TextEditor(text: $notes)
+                .frame(minHeight: 100)
+                .padding(Spacing.sm)
+                .background(Color(.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                .overlay(
+                    RoundedRectangle(cornerRadius: CornerRadius.small)
+                        .stroke(Color(.systemGray4), lineWidth: 0.5)
+                )
+                .focused($isNotesFocused)
+        }
+    }
+
+    // MARK: - Functions
+
+    private func addQuickSection(type: SectionType) {
+        let section = TempSection(
+            type: type,
+            order: sections.count,
+            customLabel: nil,
+            customName: nil
+        )
+        sections.append(section)
+    }
+
+    private func loadImagesFromFiles(result: Result<[URL], Error>) async {
+        guard let urls = try? result.get() else { return }
+
+        await MainActor.run {
+            isLoadingImages = true
+        }
+
+        for url in urls {
+            if sheetMusicImages.count >= 10 {
+                await MainActor.run {
+                    showingImageLimitError = true
+                }
+                break
+            }
+
+            guard url.startAccessingSecurityScopedResource() else { continue }
+            defer { url.stopAccessingSecurityScopedResource() }
+
+            if let data = try? Data(contentsOf: url) {
+                await MainActor.run {
+                    sheetMusicImages.append(data)
+                }
+            }
+        }
+
+        await MainActor.run {
+            isLoadingImages = false
+        }
+    }
+
     private func addSong() {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !trimmedTitle.isEmpty else {
             validationErrorMessage = "제목을 입력해주세요"
-            showingValidationError = true
-            return
-        }
-
-        guard tempo > 0 && tempo <= 300 else {
-            validationErrorMessage = "올바른 BPM을 입력해주세요 (1-300)"
             showingValidationError = true
             return
         }
@@ -365,6 +694,27 @@ struct CreateSongView: View {
             timeSignature: timeSignature
         )
 
+        // 섹션 추가
+        for tempSection in sortedSections {
+            let section = SongSection(
+                type: tempSection.type,
+                order: tempSection.order,
+                customLabel: tempSection.customLabel,
+                customName: tempSection.customName
+            )
+            section.song = song
+            song.sections.append(section)
+            modelContext.insert(section)
+        }
+
+        // 악보 추가
+        song.sheetMusicImages = sheetMusicImages
+
+        // 메모 추가
+        if !notes.isEmpty {
+            song.notes = notes
+        }
+
         do {
             try song.validate()
             modelContext.insert(song)
@@ -375,6 +725,267 @@ struct CreateSongView: View {
         } catch {
             validationErrorMessage = "곡 추가에 실패했습니다"
             showingValidationError = true
+        }
+    }
+}
+
+// MARK: - TempSection
+
+struct TempSection: Identifiable {
+    let id = UUID()
+    var type: SectionType
+    var order: Int
+    var customLabel: String?
+    var customName: String?
+
+    var displayLabel: String {
+        let baseName = type == .custom && customName != nil && !customName!.isEmpty ? customName! : type.rawValue
+
+        if let customLabel = customLabel, !customLabel.isEmpty {
+            return "\(baseName)\(customLabel)"
+        }
+        return baseName
+    }
+}
+
+// MARK: - Create Section View
+
+struct CreateSectionView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var sections: [TempSection]
+
+    @State private var customName: String = ""
+    @State private var customLabel: String = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("커스텀 이름") {
+                    TextField("예: Drop, Tag, Vamp...", text: $customName)
+                        .autocapitalization(.none)
+                }
+
+                Section("번호 (선택사항)") {
+                    TextField("예: 1, 2, 3...", text: $customLabel)
+                        .keyboardType(.numberPad)
+                }
+
+                Section {
+                    HStack {
+                        Text("표시될 이름:")
+                        Spacer()
+                        Text(previewLabel)
+                            .font(.headline)
+                            .foregroundStyle(Color.accentGold)
+                    }
+                } header: {
+                    Text("미리보기")
+                }
+            }
+            .navigationTitle("섹션 추가")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("취소") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("추가") {
+                        addSection()
+                    }
+                }
+            }
+        }
+    }
+
+    private var previewLabel: String {
+        let baseName = !customName.isEmpty ? customName : "Custom"
+
+        if customLabel.isEmpty {
+            return baseName
+        } else {
+            return "\(baseName)\(customLabel)"
+        }
+    }
+
+    private func addSection() {
+        let section = TempSection(
+            type: .custom,
+            order: sections.count,
+            customLabel: customLabel.isEmpty ? nil : customLabel,
+            customName: customName.isEmpty ? nil : customName
+        )
+        sections.append(section)
+        dismiss()
+    }
+}
+
+// MARK: - Edit Temp Section View
+
+struct EditTempSectionView: View {
+    @Environment(\.dismiss) private var dismiss
+    let section: TempSection
+    @Binding var sections: [TempSection]
+
+    @State private var selectedType: SectionType = .verse
+    @State private var customLabel: String = ""
+    @State private var customName: String = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("섹션 타입") {
+                    Picker("타입", selection: $selectedType) {
+                        ForEach(SectionType.allCases) { type in
+                            Text("\(type.displayName) (\(type.rawValue))").tag(type)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                if selectedType == .custom {
+                    Section("커스텀 이름") {
+                        TextField("예: Drop, Tag, Vamp...", text: $customName)
+                            .autocapitalization(.none)
+                    }
+                }
+
+                Section("번호 (선택사항)") {
+                    TextField("예: 1, 2, 3...", text: $customLabel)
+                        .keyboardType(.numberPad)
+                }
+
+                Section {
+                    HStack {
+                        Text("표시될 이름:")
+                        Spacer()
+                        Text(previewLabel)
+                            .font(.headline)
+                            .foregroundStyle(Color.accentGold)
+                    }
+                } header: {
+                    Text("미리보기")
+                }
+            }
+            .navigationTitle("섹션 수정")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("취소") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("완료") {
+                        saveSection()
+                    }
+                }
+            }
+            .onAppear {
+                selectedType = section.type
+                customLabel = section.customLabel ?? ""
+                customName = section.customName ?? ""
+            }
+        }
+    }
+
+    private var previewLabel: String {
+        let baseName = selectedType == .custom && !customName.isEmpty ? customName : selectedType.rawValue
+
+        if customLabel.isEmpty {
+            return baseName
+        } else {
+            return "\(baseName)\(customLabel)"
+        }
+    }
+
+    private func saveSection() {
+        if let index = sections.firstIndex(where: { $0.id == section.id }) {
+            sections[index].type = selectedType
+            sections[index].customLabel = customLabel.isEmpty ? nil : customLabel
+            sections[index].customName = customName.isEmpty ? nil : customName
+        }
+        dismiss()
+    }
+}
+
+// MARK: - Create Photo Picker View
+
+struct CreatePhotoPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selectedItems: [PhotosPickerItem]
+    @Binding var sheetMusicImages: [Data]
+    @Binding var isLoadingImages: Bool
+    @Binding var showingImageLimitError: Bool
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+                PhotosPicker(selection: $selectedItems, maxSelectionCount: 10, matching: .images) {
+                    VStack(spacing: Spacing.lg) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 60))
+                            .foregroundStyle(Color.accentGold)
+
+                        Text("사진 선택")
+                            .font(.headline)
+
+                        Text("최대 10장까지 선택 가능합니다")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .buttonStyle(.plain)
+            }
+            .navigationTitle("사진 라이브러리")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("취소") {
+                        dismiss()
+                    }
+                }
+            }
+            .onChange(of: selectedItems) { _, newItems in
+                if !newItems.isEmpty {
+                    Task {
+                        await loadImages(from: newItems)
+                        await MainActor.run {
+                            dismiss()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func loadImages(from items: [PhotosPickerItem]) async {
+        await MainActor.run {
+            isLoadingImages = true
+        }
+
+        for item in items {
+            if sheetMusicImages.count >= 10 {
+                await MainActor.run {
+                    showingImageLimitError = true
+                }
+                break
+            }
+
+            if let data = try? await item.loadTransferable(type: Data.self) {
+                await MainActor.run {
+                    sheetMusicImages.append(data)
+                }
+            }
+        }
+
+        await MainActor.run {
+            selectedItems = []
+            isLoadingImages = false
         }
     }
 }
@@ -419,7 +1030,7 @@ struct SongFilterView: View {
                                         .font(.caption)
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
-                                        .background(.blue.opacity(0.2))
+                                        .background(Color.codeBlue.opacity(0.2))
                                         .clipShape(Capsule())
                                 }
                             }
@@ -476,7 +1087,7 @@ struct SongFilterView: View {
                                         .font(.caption)
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
-                                        .background(.orange.opacity(0.2))
+                                        .background(Color.signatureOrange.opacity(0.2))
                                         .clipShape(Capsule())
                                 }
                             }

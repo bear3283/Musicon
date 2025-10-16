@@ -13,27 +13,40 @@ struct AddSectionView: View {
     @Environment(\.dismiss) private var dismiss
 
     let song: Song
+    var initialType: SectionType = .verse
 
     @State private var selectedType: SectionType = .verse
     @State private var customLabel: String = ""
+    @State private var customName: String = ""
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("섹션 타입") {
-                    Picker("타입", selection: $selectedType) {
-                        ForEach(SectionType.allCases) { type in
-                            HStack {
-                                Text(type.displayName)
-                                Spacer()
-                                Text("(\(type.rawValue))")
-                                    .foregroundStyle(.secondary)
+                // Custom이 아닐 때만 섹션 타입 선택 표시
+                if initialType != .custom {
+                    Section("섹션 타입") {
+                        Picker("타입", selection: $selectedType) {
+                            ForEach(SectionType.allCases) { type in
+                                HStack {
+                                    Text(type.displayName)
+                                    Spacer()
+                                    Text("(\(type.rawValue))")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .tag(type)
                             }
-                            .tag(type)
                         }
+                        .pickerStyle(.inline)
+                        .labelsHidden()
                     }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
+                }
+
+                // Custom 타입일 때 이름 입력
+                if selectedType == .custom {
+                    Section("커스텀 이름") {
+                        TextField("예: Drop, Tag, Vamp...", text: $customName)
+                            .autocapitalization(.none)
+                    }
                 }
 
                 Section("번호 (선택사항)") {
@@ -47,7 +60,7 @@ struct AddSectionView: View {
                         Spacer()
                         Text(previewLabel)
                             .font(.headline)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Color.accentGold)
                     }
                 } header: {
                     Text("미리보기")
@@ -68,14 +81,19 @@ struct AddSectionView: View {
                     }
                 }
             }
+            .onAppear {
+                selectedType = initialType
+            }
         }
     }
 
     private var previewLabel: String {
+        let baseName = selectedType == .custom && !customName.isEmpty ? customName : selectedType.rawValue
+
         if customLabel.isEmpty {
-            return selectedType.rawValue
+            return baseName
         } else {
-            return "\(selectedType.rawValue)\(customLabel)"
+            return "\(baseName)\(customLabel)"
         }
     }
 
@@ -83,7 +101,8 @@ struct AddSectionView: View {
         let section = SongSection(
             type: selectedType,
             order: song.sections.count,
-            customLabel: customLabel.isEmpty ? nil : customLabel
+            customLabel: customLabel.isEmpty ? nil : customLabel,
+            customName: customName.isEmpty ? nil : customName
         )
         section.song = song
         song.sections.append(section)

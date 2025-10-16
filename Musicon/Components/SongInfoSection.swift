@@ -19,7 +19,7 @@ struct SongInfoSection: View {
     @State private var editedTimeSignature: String = "4/4"
 
     let keys = [
-        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
+        "C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B"
     ]
     let tempoOptions = Array(stride(from: 40, through: 200, by: 5))
     let timeSignatures = ["4/4", "3/4", "6/8", "2/4", "5/4", "7/8", "12/8"]

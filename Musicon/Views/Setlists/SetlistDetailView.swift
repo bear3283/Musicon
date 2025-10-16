@@ -56,7 +56,7 @@ struct SetlistDetailView: View {
             showingAddSong = true
         } label: {
             HStack {
-                Image(systemName: "plus.circle.fill")
+                Image(systemName: "plus.circle")
                 Text("곡 추가")
             }
             .frame(maxWidth: .infinity)
@@ -78,7 +78,7 @@ struct SetlistDetailView: View {
                     Section {
                         SetlistInfoSection(setlist: setlist, isEditing: $isEditing)
                     }
-                    .listRowInsets(EdgeInsets(top: 0, leading: horizontalSizeClass == .regular ? 32 : 16, bottom: 0, trailing: horizontalSizeClass == .regular ? 32 : 16))
+                    .listRowInsets(EdgeInsets(top: 0, leading: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg, bottom: 0, trailing: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
 
@@ -86,7 +86,7 @@ struct SetlistDetailView: View {
                     Section {
                         Divider()
                     }
-                    .listRowInsets(EdgeInsets(top: 12, leading: horizontalSizeClass == .regular ? 32 : 16, bottom: 12, trailing: horizontalSizeClass == .regular ? 32 : 16))
+                    .listRowInsets(EdgeInsets(top: Spacing.md, leading: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg, bottom: Spacing.md, trailing: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
 
@@ -95,7 +95,7 @@ struct SetlistDetailView: View {
                         Text("곡 목록")
                             .font(.headline)
                     }
-                    .listRowInsets(EdgeInsets(top: 0, leading: horizontalSizeClass == .regular ? 32 : 16, bottom: 12, trailing: horizontalSizeClass == .regular ? 32 : 16))
+                    .listRowInsets(EdgeInsets(top: 0, leading: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg, bottom: Spacing.md, trailing: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
 
@@ -117,7 +117,7 @@ struct SetlistDetailView: View {
                                         deleteItem(item)
                                     }
                                 )
-                                .listRowInsets(EdgeInsets(top: 6, leading: horizontalSizeClass == .regular ? 32 : 16, bottom: 6, trailing: horizontalSizeClass == .regular ? 32 : 16))
+                                .listRowInsets(EdgeInsets(top: Spacing.xs, leading: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg, bottom: Spacing.xs, trailing: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg))
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
                             }
@@ -133,7 +133,7 @@ struct SetlistDetailView: View {
                     Section {
                         addSongButton
                     }
-                    .listRowInsets(EdgeInsets(top: 6, leading: horizontalSizeClass == .regular ? 32 : 16, bottom: 6, trailing: horizontalSizeClass == .regular ? 32 : 16))
+                    .listRowInsets(EdgeInsets(top: Spacing.xs, leading: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg, bottom: Spacing.xs, trailing: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                 }
@@ -208,7 +208,7 @@ struct SetlistDetailView: View {
                             .frame(height: horizontalSizeClass == .regular ? 1000 : 700)
                         }
                     }
-                    .padding(horizontalSizeClass == .regular ? 32 : 16)
+                    .padding(horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg)
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
@@ -518,9 +518,10 @@ struct SetlistSongDetailCard: View {
                                 Text(section.displayLabel)
                                     .font(.caption)
                                     .fontWeight(.medium)
+                                    .foregroundStyle(section.type.color)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Color(.systemGray5))
+                                    .background(section.type.color.opacity(0.15))
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
 
                                 if index < sortedSections.count - 1 {
@@ -670,10 +671,10 @@ class SetlistPDFRenderer {
             let margin: CGFloat = 30
             let columnWidth = (pageWidth - margin * 3) / 2  // 2등분
 
-            let headerFont = UIFont.systemFont(ofSize: 11)
+            let headerFont = UIFont.systemFont(ofSize: 12, weight: .regular)
             let titleFont = UIFont.boldSystemFont(ofSize: 13)
             let bodyFont = UIFont.systemFont(ofSize: 12)
-            let captionFont = UIFont.systemFont(ofSize: 12)
+            let captionFont = UIFont.systemFont(ofSize: 12, weight: .regular)
 
             let sortedItems = setlist.items.sorted { $0.order < $1.order }
 

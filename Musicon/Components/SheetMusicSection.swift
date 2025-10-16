@@ -25,7 +25,7 @@ struct SheetMusicSection: View {
     @State private var showingImageLimitError = false
     @State private var isLoadingImages = false
 
-    var body: some View {
+    var body: some View {                        
         VStack(alignment: .leading, spacing: 12) {
             Text("악보")
                 .font(.headline)
@@ -124,8 +124,8 @@ struct SheetMusicSection: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(.blue.opacity(0.1))
-                .foregroundStyle(.blue)
+                .background(Color.accentGold.opacity(0.1))
+                .foregroundStyle(Color.accentGold)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .disabled(isLoadingImages)
@@ -292,7 +292,7 @@ struct PhotosPickerView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "photo.on.rectangle.angled")
                             .font(.system(size: 60))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Color.accentGold)
 
                         Text("사진 선택")
                             .font(.headline)

@@ -14,6 +14,7 @@ final class SetlistItemSection {
     var type: SectionType
     var order: Int
     var customLabel: String?
+    var customName: String?
 
     @Relationship(inverse: \SetlistItem.sections)
     var setlistItem: SetlistItem?
@@ -22,19 +23,23 @@ final class SetlistItemSection {
         id: UUID = UUID(),
         type: SectionType,
         order: Int,
-        customLabel: String? = nil
+        customLabel: String? = nil,
+        customName: String? = nil
     ) {
         self.id = id
         self.type = type
         self.order = order
         self.customLabel = customLabel
+        self.customName = customName
     }
 
     var displayLabel: String {
+        let baseName = type == .custom && customName != nil && !customName!.isEmpty ? customName! : type.rawValue
+
         if let customLabel = customLabel, !customLabel.isEmpty {
-            return "\(type.rawValue)\(customLabel)"
+            return "\(baseName)\(customLabel)"
         }
-        return type.rawValue
+        return baseName
     }
 
     // SongSection으로부터 복제하는 편의 생성자
@@ -42,7 +47,8 @@ final class SetlistItemSection {
         self.init(
             type: songSection.type,
             order: songSection.order,
-            customLabel: songSection.customLabel
+            customLabel: songSection.customLabel,
+            customName: songSection.customName
         )
     }
 }

@@ -14,6 +14,7 @@ final class SongSection {
     var type: SectionType
     var order: Int
     var customLabel: String?
+    var customName: String?
 
     @Relationship(inverse: \Song.sections)
     var song: Song?
@@ -22,18 +23,22 @@ final class SongSection {
         id: UUID = UUID(),
         type: SectionType,
         order: Int,
-        customLabel: String? = nil
+        customLabel: String? = nil,
+        customName: String? = nil
     ) {
         self.id = id
         self.type = type
         self.order = order
         self.customLabel = customLabel
+        self.customName = customName
     }
 
     var displayLabel: String {
+        let baseName = type == .custom && customName != nil && !customName!.isEmpty ? customName! : type.rawValue
+
         if let customLabel = customLabel, !customLabel.isEmpty {
-            return "\(type.rawValue)\(customLabel)"
+            return "\(baseName)\(customLabel)"
         }
-        return type.rawValue
+        return baseName
     }
 }

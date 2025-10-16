@@ -8,6 +8,15 @@
 import SwiftUI
 import SwiftData
 
+// 악보 페이지 데이터 구조체
+struct SheetMusicPageData: Identifiable {
+    let id = UUID()
+    let item: SetlistItem
+    let order: Int
+    let imageIndex: Int
+    let imageData: Data
+}
+
 struct SetlistSheetMusicView: View {
     @Environment(\.dismiss) private var dismiss
     let setlist: Setlist
@@ -17,15 +26,20 @@ struct SetlistSheetMusicView: View {
     @State private var hideTask: Task<Void, Never>?
 
     // 모든 악보 이미지를 순서대로 수집
-    var allSheetMusicData: [(item: SetlistItem, order: Int, imageIndex: Int, imageData: Data)] {
+    var allSheetMusicData: [SheetMusicPageData] {
         let sortedItems = setlist.items.sorted { $0.order < $1.order }
-        var result: [(SetlistItem, Int, Int, Data)] = []
+        var result: [SheetMusicPageData] = []
 
         for item in sortedItems {
             let order = item.order + 1
 
             for (index, imageData) in item.sheetMusicImages.enumerated() {
-                result.append((item, order, index, imageData))
+                result.append(SheetMusicPageData(
+                    item: item,
+                    order: order,
+                    imageIndex: index,
+                    imageData: imageData
+                ))
             }
         }
 
@@ -43,7 +57,8 @@ struct SetlistSheetMusicView: View {
                 }
             } else {
                 TabView(selection: $currentPage) {
-                    ForEach(Array(allSheetMusicData.enumerated()), id: \.offset) { index, data in
+                    ForEach(0..<allSheetMusicData.count, id: \.self) { index in
+                        let data = allSheetMusicData[index]
                         SheetMusicPageView(
                             item: data.item,
                             songOrder: data.order,
