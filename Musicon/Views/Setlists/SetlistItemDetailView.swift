@@ -10,7 +10,6 @@ import SwiftData
 
 struct SetlistItemDetailView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     let item: SetlistItem
 
@@ -51,7 +50,7 @@ struct SetlistItemDetailView: View {
                     // 콘티 메모 섹션
                     SetlistItemNotesSection(item: item)
                 }
-                .padding(horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg)
+                .padding(DeviceType.isIPad ? Spacing.xxl : Spacing.lg)
             }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(item.title)
@@ -562,7 +561,6 @@ struct AddSetlistItemSectionView: View {
 
 // 콘티 아이템 악보 섹션
 struct SetlistItemSheetMusicSection: View {
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let item: SetlistItem
 
     var body: some View {
@@ -585,7 +583,7 @@ struct SetlistItemSheetMusicSection: View {
                                     let availableWidth = geometry.size.width
 
                                     // iPad에서 훨씬 더 크게 표시
-                                    let targetHeight: CGFloat = horizontalSizeClass == .regular ? 800 : 500
+                                    let targetHeight: CGFloat = DeviceType.isIPad ? 800 : 500
                                     let calculatedWidth = targetHeight * imageAspectRatio
 
                                     // 너비가 화면을 넘지 않도록 조정
@@ -604,7 +602,7 @@ struct SetlistItemSheetMusicSection: View {
                         }
                     }
                 }
-                .frame(height: horizontalSizeClass == .regular ? 850 : 550)
+                .frame(height: DeviceType.isIPad ? 850 : 550)
             }
         }
     }

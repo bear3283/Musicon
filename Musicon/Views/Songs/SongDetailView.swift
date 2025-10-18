@@ -10,7 +10,6 @@ import SwiftData
 
 struct SongDetailView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let song: Song
 
     @State private var isEditing = false
@@ -18,7 +17,7 @@ struct SongDetailView: View {
     var body: some View {
         GeometryReader { outerGeometry in
             ScrollView {
-                if horizontalSizeClass == .regular {
+                if DeviceType.isIPad {
                     // iPad: 2단 레이아웃
                     iPadLayout(screenHeight: outerGeometry.size.height)
                 } else {
@@ -29,7 +28,7 @@ struct SongDetailView: View {
             .scrollDismissesKeyboard(.interactively)
         }
         .navigationTitle(song.title)
-        .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .inline : .large)
+        .navigationBarTitleDisplayMode(DeviceType.isIPad ? .inline : .large)
         .tint(.accentGold)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

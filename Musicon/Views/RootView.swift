@@ -14,12 +14,11 @@ enum SidebarTab: Hashable {
 }
 
 struct RootView: View {
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var selectedTab: SidebarTab? = nil
     @State private var navigationPath = NavigationPath()
 
     var body: some View {
-        if horizontalSizeClass == .regular {
+        if DeviceType.isIPad {
             // iPad: Split View
             iPadLayout()
         } else {

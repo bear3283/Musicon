@@ -185,3 +185,18 @@ struct Badge: View {
         .clipShape(Capsule())
     }
 }
+
+// MARK: - Device Type Helper
+
+/// 디바이스 타입을 정확하게 구분하는 유틸리티
+enum DeviceType {
+    /// 현재 디바이스가 iPad인지 확인
+    static var isIPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
+    /// 현재 디바이스가 iPhone인지 확인
+    static var isIPhone: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone
+    }
+}

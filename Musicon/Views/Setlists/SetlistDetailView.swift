@@ -10,7 +10,6 @@ import SwiftData
 
 struct SetlistDetailView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let setlist: Setlist
 
     @State private var isEditing = false
@@ -78,7 +77,7 @@ struct SetlistDetailView: View {
                     Section {
                         SetlistInfoSection(setlist: setlist, isEditing: $isEditing)
                     }
-                    .listRowInsets(EdgeInsets(top: 0, leading: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg, bottom: 0, trailing: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg))
+                    .listRowInsets(EdgeInsets(top: 0, leading: DeviceType.isIPad ? Spacing.xxl : Spacing.lg, bottom: 0, trailing: DeviceType.isIPad ? Spacing.xxl : Spacing.lg))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
 
@@ -86,7 +85,7 @@ struct SetlistDetailView: View {
                     Section {
                         Divider()
                     }
-                    .listRowInsets(EdgeInsets(top: Spacing.md, leading: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg, bottom: Spacing.md, trailing: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg))
+                    .listRowInsets(EdgeInsets(top: Spacing.md, leading: DeviceType.isIPad ? Spacing.xxl : Spacing.lg, bottom: Spacing.md, trailing: DeviceType.isIPad ? Spacing.xxl : Spacing.lg))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
 
@@ -95,7 +94,7 @@ struct SetlistDetailView: View {
                         Text("곡 목록")
                             .font(.headline)
                     }
-                    .listRowInsets(EdgeInsets(top: 0, leading: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg, bottom: Spacing.md, trailing: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg))
+                    .listRowInsets(EdgeInsets(top: 0, leading: DeviceType.isIPad ? Spacing.xxl : Spacing.lg, bottom: Spacing.md, trailing: DeviceType.isIPad ? Spacing.xxl : Spacing.lg))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
 
@@ -117,7 +116,7 @@ struct SetlistDetailView: View {
                                         deleteItem(item)
                                     }
                                 )
-                                .listRowInsets(EdgeInsets(top: Spacing.xs, leading: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg, bottom: Spacing.xs, trailing: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg))
+                                .listRowInsets(EdgeInsets(top: Spacing.xs, leading: DeviceType.isIPad ? Spacing.xxl : Spacing.lg, bottom: Spacing.xs, trailing: DeviceType.isIPad ? Spacing.xxl : Spacing.lg))
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
                             }
@@ -133,7 +132,7 @@ struct SetlistDetailView: View {
                     Section {
                         addSongButton
                     }
-                    .listRowInsets(EdgeInsets(top: Spacing.xs, leading: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg, bottom: Spacing.xs, trailing: horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg))
+                    .listRowInsets(EdgeInsets(top: Spacing.xs, leading: DeviceType.isIPad ? Spacing.xxl : Spacing.lg, bottom: Spacing.xs, trailing: DeviceType.isIPad ? Spacing.xxl : Spacing.lg))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                 }
@@ -169,7 +168,7 @@ struct SetlistDetailView: View {
                                                     onDelete: {
                                                         deleteItem(item)
                                                     },
-                                                    isIPad: horizontalSizeClass == .regular,
+                                                    isIPad: DeviceType.isIPad,
                                                     availableHeight: outerGeometry.size.height
                                                 )
                                                 Spacer(minLength: 0)
@@ -206,16 +205,16 @@ struct SetlistDetailView: View {
                                     }
                                 }
                             }
-                            .frame(height: horizontalSizeClass == .regular ? 1100 : 750)
+                            .frame(height: DeviceType.isIPad ? 1100 : 750)
                         }
                     }
-                    .padding(horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg)
+                    .padding(DeviceType.isIPad ? Spacing.xxl : Spacing.lg)
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
         }
         .navigationTitle(setlist.title)
-        .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .inline : .large)
+        .navigationBarTitleDisplayMode(DeviceType.isIPad ? .inline : .large)
         .tint(Color.accentGold)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -258,7 +257,7 @@ struct SetlistDetailView: View {
             AddSongToSetlistView(setlist: setlist)
         }
         .background {
-            if horizontalSizeClass == .regular {
+            if DeviceType.isIPad {
                 // iPad: 전체화면 모달
                 Color.clear
                     .fullScreenCover(isPresented: $showingSheetMusicView) {

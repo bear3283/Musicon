@@ -19,7 +19,6 @@ struct SheetMusicPageData: Identifiable {
 
 struct SetlistSheetMusicView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let setlist: Setlist
 
     @State private var currentPage = 0
@@ -153,7 +152,7 @@ struct SetlistSheetMusicView: View {
         }
 
         // iPad: 3초, iPhone: 2초 후 숨기기
-        let hideDelay: UInt64 = horizontalSizeClass == .regular ? 3_000_000_000 : 2_000_000_000
+        let hideDelay: UInt64 = DeviceType.isIPad ? 3_000_000_000 : 2_000_000_000
         hideTask = Task {
             try? await Task.sleep(nanoseconds: hideDelay)
             if !Task.isCancelled {
@@ -167,8 +166,6 @@ struct SetlistSheetMusicView: View {
 
 // 개별 악보 페이지 뷰
 struct SheetMusicPageView: View {
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
     let item: SetlistItem
     let songOrder: Int
     let imageIndex: Int
@@ -187,7 +184,7 @@ struct SheetMusicPageView: View {
     }
 
     var isIPad: Bool {
-        horizontalSizeClass == .regular
+        DeviceType.isIPad
     }
 
     var body: some View {

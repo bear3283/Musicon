@@ -11,7 +11,6 @@ import PhotosUI
 
 struct SheetMusicSection: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let song: Song
     var availableHeight: CGFloat? = nil
 
@@ -62,7 +61,7 @@ struct SheetMusicSection: View {
                 // 이미지 그리드
                 GeometryReader { geometry in
                     // iPad에서 더 큰 크기로 표시
-                    let isIPad = horizontalSizeClass == .regular
+                    let isIPad = DeviceType.isIPad
                     let isLandscape = geometry.size.width > geometry.size.height
 
                     // iPad: 가로 90%, 세로 85% | iPhone: 80%
@@ -116,7 +115,7 @@ struct SheetMusicSection: View {
                     }
                     .scrollTargetBehavior(.viewAligned)
                 }
-                .frame(height: availableHeight ?? (horizontalSizeClass == .regular ? 600 : 420))
+                .frame(height: availableHeight ?? (DeviceType.isIPad ? 600 : 420))
             }
 
             // 악보 추가 버튼
@@ -193,7 +192,7 @@ struct SheetMusicSection: View {
             Text("이 악보 이미지를 삭제하시겠습니까?")
         }
         .background {
-            if horizontalSizeClass == .regular {
+            if DeviceType.isIPad {
                 // iPad: 전체화면 모달
                 Color.clear
                     .fullScreenCover(item: Binding(
@@ -224,8 +223,18 @@ struct SheetMusicSection: View {
             }
             Button("취소", role: .cancel) {}
         }
-        .sheet(isPresented: $showPhotosPicker) {
-            PhotosPickerView(selectedItems: $selectedItems, song: song, modelContext: modelContext, showingImageLimitError: $showingImageLimitError, isLoadingImages: $isLoadingImages)
+        .photosPicker(
+            isPresented: $showPhotosPicker,
+            selection: $selectedItems,
+            maxSelectionCount: 10,
+            matching: .images
+        )
+        .onChange(of: selectedItems) { _, newItems in
+            if !newItems.isEmpty {
+                Task {
+                    await loadImagesFromPhotos(from: newItems)
+                }
+            }
         }
         .fileImporter(
             isPresented: $showFileImporter,
@@ -299,64 +308,8 @@ struct SheetMusicSection: View {
             isLoadingImages = false
         }
     }
-}
 
-struct ImageIndex: Identifiable {
-    let id = UUID()
-    let value: Int
-}
-
-struct PhotosPickerView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var selectedItems: [PhotosPickerItem]
-    let song: Song
-    let modelContext: ModelContext
-    @Binding var showingImageLimitError: Bool
-    @Binding var isLoadingImages: Bool
-
-    var body: some View {
-        NavigationStack {
-            VStack {
-                PhotosPicker(selection: $selectedItems, maxSelectionCount: 10, matching: .images) {
-                    VStack(spacing: 16) {
-                        Image(systemName: "photo.on.rectangle.angled")
-                            .font(.system(size: 60))
-                            .foregroundStyle(Color.accentGold)
-
-                        Text("사진 선택")
-                            .font(.headline)
-
-                        Text("최대 10장까지 선택 가능합니다")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .buttonStyle(.plain)
-            }
-            .navigationTitle("사진 라이브러리")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("취소") {
-                        dismiss()
-                    }
-                }
-            }
-            .onChange(of: selectedItems) { _, newItems in
-                if !newItems.isEmpty {
-                    Task {
-                        await loadImages(from: newItems)
-                        await MainActor.run {
-                            dismiss()
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func loadImages(from items: [PhotosPickerItem]) async {
+    private func loadImagesFromPhotos(from items: [PhotosPickerItem]) async {
         await MainActor.run {
             isLoadingImages = true
         }
@@ -391,6 +344,11 @@ struct PhotosPickerView: View {
             isLoadingImages = false
         }
     }
+}
+
+struct ImageIndex: Identifiable {
+    let id = UUID()
+    let value: Int
 }
 
 struct ImageViewer: View {
@@ -506,7 +464,6 @@ struct ImageViewer: View {
 }
 
 struct ZoomableImageView: View {
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let image: UIImage
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
