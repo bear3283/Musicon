@@ -13,6 +13,7 @@ struct SheetMusicSection: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let song: Song
+    var availableHeight: CGFloat? = nil
 
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var selectedImageIndex: Int?
@@ -115,7 +116,7 @@ struct SheetMusicSection: View {
                     }
                     .scrollTargetBehavior(.viewAligned)
                 }
-                .frame(height: horizontalSizeClass == .regular ? 600 : 420)
+                .frame(height: availableHeight ?? (horizontalSizeClass == .regular ? 600 : 420))
             }
 
             // 악보 추가 버튼

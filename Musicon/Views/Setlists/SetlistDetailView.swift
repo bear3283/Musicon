@@ -157,7 +157,7 @@ struct SetlistDetailView: View {
                             emptyStateView
                             addSongButton
                         } else {
-                            GeometryReader { geometry in
+                            GeometryReader { outerGeometry in
                                 ZStack {
                                     TabView(selection: $currentSongIndex) {
                                         ForEach(Array(sortedItems.enumerated()), id: \.element.id) { index, item in
@@ -169,7 +169,8 @@ struct SetlistDetailView: View {
                                                     onDelete: {
                                                         deleteItem(item)
                                                     },
-                                                    isIPad: horizontalSizeClass == .regular
+                                                    isIPad: horizontalSizeClass == .regular,
+                                                    availableHeight: outerGeometry.size.height
                                                 )
                                                 Spacer(minLength: 0)
                                             }
@@ -205,7 +206,7 @@ struct SetlistDetailView: View {
                                     }
                                 }
                             }
-                            .frame(height: horizontalSizeClass == .regular ? 1000 : 700)
+                            .frame(height: horizontalSizeClass == .regular ? 1100 : 750)
                         }
                     }
                     .padding(horizontalSizeClass == .regular ? Spacing.xxl : Spacing.lg)
@@ -445,6 +446,7 @@ struct SetlistSongDetailCard: View {
     let isEditing: Bool
     let onDelete: () -> Void
     var isIPad: Bool = false
+    var availableHeight: CGFloat = 1000
 
     @State private var showingItemDetail = false
     @State private var showingDeleteAlert = false
@@ -550,8 +552,10 @@ struct SetlistSongDetailCard: View {
 
             // 악보 이미지
             if !item.sheetMusicImages.isEmpty {
-                // iPad에서 더 큰 크기로 표시 - 카드 내에서 균형있게
-                let sheetMusicHeight: CGFloat = isIPad ? 700 : 450
+                // 사용 가능한 높이에서 헤더, 곡 정보, 구조 등의 높이를 제외한 공간 계산
+                // 대략적인 상단 컨텐츠 높이: 헤더(60) + 곡정보(40) + 구조(50) + 여백(80) = 230
+                let estimatedTopContentHeight: CGFloat = 230
+                let sheetMusicHeight: CGFloat = max(availableHeight - estimatedTopContentHeight, isIPad ? 600 : 400)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("악보")

@@ -16,16 +16,18 @@ struct SongDetailView: View {
     @State private var isEditing = false
 
     var body: some View {
-        ScrollView {
-            if horizontalSizeClass == .regular {
-                // iPad: 2단 레이아웃
-                iPadLayout
-            } else {
-                // iPhone: 세로 레이아웃
-                iPhoneLayout
+        GeometryReader { outerGeometry in
+            ScrollView {
+                if horizontalSizeClass == .regular {
+                    // iPad: 2단 레이아웃
+                    iPadLayout(screenHeight: outerGeometry.size.height)
+                } else {
+                    // iPhone: 세로 레이아웃
+                    iPhoneLayout(screenHeight: outerGeometry.size.height)
+                }
             }
+            .scrollDismissesKeyboard(.interactively)
         }
-        .scrollDismissesKeyboard(.interactively)
         .navigationTitle(song.title)
         .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .inline : .large)
         .tint(.accentGold)
@@ -42,7 +44,9 @@ struct SongDetailView: View {
     }
 
     @ViewBuilder
-    private var iPhoneLayout: some View {
+    private func iPhoneLayout(screenHeight: CGFloat) -> some View {
+        let sheetMusicHeight = max(screenHeight * 0.5, 450)
+
         VStack(alignment: .leading, spacing: 24) {
             // 곡 정보 섹션
             SongInfoSection(song: song, isEditing: $isEditing)
@@ -55,13 +59,18 @@ struct SongDetailView: View {
             Divider()
 
             // 악보 섹션
-            SheetMusicSection(song: song)
+            GeometryReader { geometry in
+                SheetMusicSection(song: song, availableHeight: geometry.size.height * 0.85)
+            }
+            .frame(height: sheetMusicHeight)
         }
         .padding()
     }
 
     @ViewBuilder
-    private var iPadLayout: some View {
+    private func iPadLayout(screenHeight: CGFloat) -> some View {
+        let sheetMusicHeight = max(screenHeight * 0.6, 700)
+
         VStack(alignment: .leading, spacing: 24) {
             // 곡 정보 섹션 (전체 너비)
             SongInfoSection(song: song, isEditing: $isEditing)
@@ -74,7 +83,10 @@ struct SongDetailView: View {
             Divider()
 
             // 악보 섹션 (전체 너비 - 크게 표시)
-            SheetMusicSection(song: song)
+            GeometryReader { geometry in
+                SheetMusicSection(song: song, availableHeight: geometry.size.height * 0.92)
+            }
+            .frame(height: sheetMusicHeight)
         }
         .padding(Spacing.xxl)
     }
