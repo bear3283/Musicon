@@ -15,7 +15,7 @@ struct SetlistSongsSection: View {
     @State private var editingItem: SetlistItem?
 
     var sortedItems: [SetlistItem] {
-        setlist.items.sorted { $0.order < $1.order }
+        (setlist.items ?? []).sorted { $0.order < $1.order }
     }
 
     var body: some View {
@@ -94,8 +94,8 @@ struct SetlistSongsSection: View {
     }
 
     private func deleteItem(_ item: SetlistItem) {
-        if let index = setlist.items.firstIndex(where: { $0.id == item.id }) {
-            setlist.items.remove(at: index)
+        if let index = setlist.items?.firstIndex(where: { $0.id == item.id }) {
+            setlist.items?.remove(at: index)
             modelContext.delete(item)
 
             // 순서 재정렬

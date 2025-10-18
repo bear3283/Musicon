@@ -8,8 +8,15 @@
 import SwiftUI
 import SwiftData
 
+enum SidebarTab: Hashable {
+    case songs
+    case setlists
+}
+
 struct RootView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var selectedTab: SidebarTab? = nil
+    @State private var navigationPath = NavigationPath()
 
     var body: some View {
         if horizontalSizeClass == .regular {
@@ -40,31 +47,62 @@ struct RootView: View {
     @ViewBuilder
     private func iPadLayout() -> some View {
         NavigationSplitView {
-            SidebarView()
-        } content: {
-            ContentPlaceholderView()
+            SidebarView(selectedTab: $selectedTab)
         } detail: {
-            DetailPlaceholderView()
+            NavigationStack(path: $navigationPath) {
+                if let selectedTab = selectedTab {
+                    switch selectedTab {
+                    case .songs:
+                        SongListContentView()
+                    case .setlists:
+                        SetlistListContentView()
+                    }
+                } else {
+                    ContentPlaceholderView()
+                }
+            }
+            .onChange(of: selectedTab) { oldValue, newValue in
+                // 사이드바 탭 변경 시 네비게이션 스택 초기화
+                navigationPath = NavigationPath()
+            }
         }
     }
 }
 
 // MARK: - iPad Sidebar
 struct SidebarView: View {
-    @State private var selectedTab: SidebarTab? = .songs
+    @Binding var selectedTab: SidebarTab?
 
     var body: some View {
-        List(selection: $selectedTab) {
+        List {
             Section {
-                NavigationLink(value: SidebarTab.songs) {
-                    Label("곡", systemImage: "music.note")
-                        .font(.bodyLarge)
+                Button {
+                    selectedTab = .songs
+                } label: {
+                    HStack {
+                        Label("곡", systemImage: "music.note")
+                            .font(.bodyLarge)
+                            .foregroundStyle(selectedTab == .songs ? Color.accentGold : Color.primary)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .listRowBackground(selectedTab == .songs ? Color.accentGold.opacity(0.2) : Color.clear)
 
-                NavigationLink(value: SidebarTab.setlists) {
-                    Label("콘티", systemImage: "music.note.list")
-                        .font(.bodyLarge)
+                Button {
+                    selectedTab = .setlists
+                } label: {
+                    HStack {
+                        Label("콘티", systemImage: "music.note.list")
+                            .font(.bodyLarge)
+                            .foregroundStyle(selectedTab == .setlists ? Color.accentGold : Color.primary)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .listRowBackground(selectedTab == .setlists ? Color.accentGold.opacity(0.2) : Color.clear)
             } header: {
                 Text("라이브러리")
                     .font(.labelLarge)
@@ -73,20 +111,7 @@ struct SidebarView: View {
         }
         .navigationTitle("Musicon")
         .tint(.accentGold)
-        .navigationDestination(for: SidebarTab.self) { tab in
-            switch tab {
-            case .songs:
-                SongListContentView()
-            case .setlists:
-                SetlistListContentView()
-            }
-        }
     }
-}
-
-enum SidebarTab: Hashable {
-    case songs
-    case setlists
 }
 
 // MARK: - Content Views
@@ -95,7 +120,6 @@ struct SongListContentView: View {
     @Query(sort: \Song.createdAt, order: .reverse) private var songs: [Song]
     @State private var searchText = ""
     @State private var showingCreateSheet = false
-    @State private var selectedSong: Song?
 
     var filteredSongs: [Song] {
         if searchText.isEmpty {
@@ -114,7 +138,7 @@ struct SongListContentView: View {
                     Text("+ 버튼을 눌러 첫 곡을 추가해보세요")
                 }
             } else {
-                List(selection: $selectedSong) {
+                List {
                     ForEach(filteredSongs) { song in
                         NavigationLink(value: song) {
                             SongRowView(song: song)
@@ -135,6 +159,8 @@ struct SongListContentView: View {
                     showingCreateSheet = true
                 } label: {
                     Image(systemName: "plus")
+                        .font(.title3)
+                        .foregroundStyle(Color.accentGold)
                 }
             }
         }
@@ -156,7 +182,6 @@ struct SetlistListContentView: View {
     @Query(sort: \Setlist.createdAt, order: .reverse) private var setlists: [Setlist]
     @State private var searchText = ""
     @State private var showingCreateSheet = false
-    @State private var selectedSetlist: Setlist?
 
     var filteredSetlists: [Setlist] {
         if searchText.isEmpty {
@@ -175,7 +200,7 @@ struct SetlistListContentView: View {
                     Text("+ 버튼을 눌러 첫 콘티를 만들어보세요")
                 }
             } else {
-                List(selection: $selectedSetlist) {
+                List {
                     ForEach(filteredSetlists) { setlist in
                         NavigationLink(value: setlist) {
                             SetlistRowView(setlist: setlist)
@@ -199,6 +224,8 @@ struct SetlistListContentView: View {
                     showingCreateSheet = true
                 } label: {
                     Image(systemName: "plus")
+                        .font(.title3)
+                        .foregroundStyle(Color.accentGold)
                 }
             }
         }
@@ -223,32 +250,11 @@ struct ContentPlaceholderView: View {
                 .font(.system(size: 60, weight: .light))
                 .foregroundStyle(Color.accentGold.opacity(0.6))
 
-            Text("항목을 선택하세요")
+            Text("시작하기")
                 .font(.titleLarge)
                 .foregroundStyle(Color.textPrimary)
 
-            Text("왼쪽에서 곡이나 콘티를 선택하면\n여기에 목록이 표시됩니다")
-                .font(.bodyMedium)
-                .foregroundStyle(Color.textSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.backgroundSecondary)
-    }
-}
-
-struct DetailPlaceholderView: View {
-    var body: some View {
-        VStack(spacing: Spacing.lg) {
-            Image(systemName: "music.note")
-                .font(.system(size: 60, weight: .light))
-                .foregroundStyle(Color.accentGold.opacity(0.6))
-
-            Text("상세 정보")
-                .font(.titleLarge)
-                .foregroundStyle(Color.textPrimary)
-
-            Text("목록에서 항목을 선택하면\n여기에 상세 정보가 표시됩니다")
+            Text("왼쪽 사이드바에서\n곡 또는 콘티를 선택하세요")
                 .font(.bodyMedium)
                 .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)

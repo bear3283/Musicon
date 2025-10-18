@@ -24,7 +24,7 @@ struct SetlistDetailView: View {
     @State private var showingExportError = false
 
     var sortedItems: [SetlistItem] {
-        setlist.items.sorted { $0.order < $1.order }
+        (setlist.items ?? []).sorted { $0.order < $1.order }
     }
 
     // 악보가 있는지 확인
@@ -256,10 +256,22 @@ struct SetlistDetailView: View {
         .sheet(isPresented: $showingAddSong) {
             AddSongToSetlistView(setlist: setlist)
         }
-        .sheet(isPresented: $showingSheetMusicView) {
-            SetlistSheetMusicView(setlist: setlist)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.hidden)
+        .background {
+            if horizontalSizeClass == .regular {
+                // iPad: 전체화면 모달
+                Color.clear
+                    .fullScreenCover(isPresented: $showingSheetMusicView) {
+                        SetlistSheetMusicView(setlist: setlist)
+                    }
+            } else {
+                // iPhone: sheet with large detent
+                Color.clear
+                    .sheet(isPresented: $showingSheetMusicView) {
+                        SetlistSheetMusicView(setlist: setlist)
+                            .presentationDetents([.large])
+                            .presentationDragIndicator(.hidden)
+                    }
+            }
         }
         .sheet(isPresented: $showingShareSheet) {
             if let pdfURL = pdfURL {
@@ -288,8 +300,8 @@ struct SetlistDetailView: View {
     }
 
     private func deleteItem(_ item: SetlistItem) {
-        if let index = setlist.items.firstIndex(where: { $0.id == item.id }) {
-            setlist.items.remove(at: index)
+        if let index = setlist.items?.firstIndex(where: { $0.id == item.id }) {
+            setlist.items?.remove(at: index)
             modelContext.delete(item)
 
             // 순서 재정렬
@@ -503,25 +515,26 @@ struct SetlistSongDetailCard: View {
             }
 
             // 곡 구조
-            if !item.sections.isEmpty {
+            if !(item.sections ?? []).isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("구조")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
 
-                    let sortedSections = item.sections.sorted(by: { $0.order < $1.order })
+                    let sortedSections = (item.sections ?? []).sorted(by: { $0.order < $1.order })
 
                     FlowLayout(spacing: 6) {
                         ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
                             HStack(spacing: 3) {
+                                let sectionColor = (section.type ?? .verse).color
                                 Text(section.displayLabel)
                                     .font(.caption)
                                     .fontWeight(.medium)
-                                    .foregroundStyle(section.type.color)
+                                    .foregroundStyle(sectionColor)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(section.type.color.opacity(0.15))
+                                    .background(sectionColor.opacity(0.15))
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
 
                                 if index < sortedSections.count - 1 {
@@ -537,7 +550,8 @@ struct SetlistSongDetailCard: View {
 
             // 악보 이미지
             if !item.sheetMusicImages.isEmpty {
-                let sheetMusicHeight: CGFloat = isIPad ? 600 : 400
+                // iPad에서 더 큰 크기로 표시 - 카드 내에서 균형있게
+                let sheetMusicHeight: CGFloat = isIPad ? 700 : 450
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("악보")
@@ -546,7 +560,7 @@ struct SetlistSongDetailCard: View {
                         .foregroundStyle(.secondary)
 
                     GeometryReader { geometry in
-                        let imageWidth: CGFloat = geometry.size.width * (isIPad ? 0.85 : 0.80)
+                        let imageWidth: CGFloat = geometry.size.width * (isIPad ? 0.90 : 0.85)
                         let spacing: CGFloat = 16
 
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -676,7 +690,7 @@ class SetlistPDFRenderer {
             let bodyFont = UIFont.systemFont(ofSize: 12)
             let captionFont = UIFont.systemFont(ofSize: 12, weight: .regular)
 
-            let sortedItems = setlist.items.sorted { $0.order < $1.order }
+            let sortedItems = (setlist.items ?? []).sorted { $0.order < $1.order }
 
             // 슬롯 배치: 각 슬롯은 곡 또는 추가 악보를 담을 수 있음
             var slots: [(item: SetlistItem, sheetIndex: Int)] = []
@@ -789,7 +803,7 @@ class SetlistPDFRenderer {
 
         // 첫 번째 악보일 때만 곡 정보 표시
         if isFirstSheet {
-            let sortedItems = item.setlist?.items.sorted { $0.order < $1.order } ?? []
+            let sortedItems = (item.setlist?.items ?? []).sorted { $0.order < $1.order }
             let songNumber = (sortedItems.firstIndex(where: { $0.id == item.id }) ?? 0) + 1
 
             // 1행: 번호 + 제목 + 기본 정보
@@ -820,7 +834,7 @@ class SetlistPDFRenderer {
             currentY += 18
 
             // 2행: 곡 구조
-            let sortedSections = item.sections.sorted { $0.order < $1.order }
+            let sortedSections = (item.sections ?? []).sorted { $0.order < $1.order }
             if !sortedSections.isEmpty {
                 let structureText = "구조: " + sortedSections.map { $0.displayLabel }.joined(separator: " → ")
                 let structureAttributes: [NSAttributedString.Key: Any] = [

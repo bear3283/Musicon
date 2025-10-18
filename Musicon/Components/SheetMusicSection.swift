@@ -11,6 +11,7 @@ import PhotosUI
 
 struct SheetMusicSection: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let song: Song
 
     @State private var selectedItems: [PhotosPickerItem] = []
@@ -59,7 +60,17 @@ struct SheetMusicSection: View {
             } else {
                 // 이미지 그리드
                 GeometryReader { geometry in
-                    let imageWidth: CGFloat = geometry.size.width * 0.80
+                    // iPad에서 더 큰 크기로 표시
+                    let isIPad = horizontalSizeClass == .regular
+                    let isLandscape = geometry.size.width > geometry.size.height
+
+                    // iPad: 가로 90%, 세로 85% | iPhone: 80%
+                    let widthRatio: CGFloat = isIPad ? (isLandscape ? 0.90 : 0.85) : 0.80
+                    let imageWidth: CGFloat = geometry.size.width * widthRatio
+
+                    // iPad: 화면 높이의 거의 전부 사용 (90-95%) | iPhone: 85%
+                    let heightRatio: CGFloat = isIPad ? (isLandscape ? 0.92 : 0.95) : 0.85
+                    let imageHeight: CGFloat = geometry.size.height * heightRatio
                     let spacing: CGFloat = 16
 
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -74,7 +85,7 @@ struct SheetMusicSection: View {
                                             .resizable()
                                             .scaledToFit()
                                             .frame(width: imageWidth)
-                                            .frame(maxHeight: 420)
+                                            .frame(maxHeight: imageHeight)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                             .overlay(alignment: .topTrailing) {
                                                 Button {
@@ -104,7 +115,7 @@ struct SheetMusicSection: View {
                     }
                     .scrollTargetBehavior(.viewAligned)
                 }
-                .frame(height: 420)
+                .frame(height: horizontalSizeClass == .regular ? 600 : 420)
             }
 
             // 악보 추가 버튼
@@ -180,11 +191,28 @@ struct SheetMusicSection: View {
         } message: {
             Text("이 악보 이미지를 삭제하시겠습니까?")
         }
-        .sheet(item: Binding(
-            get: { selectedImageIndex.map { ImageIndex(value: $0) } },
-            set: { selectedImageIndex = $0?.value }
-        )) { imageIndex in
-            ImageViewer(song: song, images: song.sheetMusicImages, currentIndex: imageIndex.value)
+        .background {
+            if horizontalSizeClass == .regular {
+                // iPad: 전체화면 모달
+                Color.clear
+                    .fullScreenCover(item: Binding(
+                        get: { selectedImageIndex.map { ImageIndex(value: $0) } },
+                        set: { selectedImageIndex = $0?.value }
+                    )) { imageIndex in
+                        ImageViewer(song: song, images: song.sheetMusicImages, currentIndex: imageIndex.value)
+                    }
+            } else {
+                // iPhone: sheet with large detent
+                Color.clear
+                    .sheet(item: Binding(
+                        get: { selectedImageIndex.map { ImageIndex(value: $0) } },
+                        set: { selectedImageIndex = $0?.value }
+                    )) { imageIndex in
+                        ImageViewer(song: song, images: song.sheetMusicImages, currentIndex: imageIndex.value)
+                            .presentationDetents([.large])
+                            .presentationDragIndicator(.hidden)
+                    }
+            }
         }
         .confirmationDialog("악보 이미지 추가", isPresented: $showAddImageOptions) {
             Button("사진 라이브러리에서 선택") {
@@ -373,7 +401,7 @@ struct ImageViewer: View {
     @State private var hideTask: Task<Void, Never>?
 
     var sortedSections: [SongSection] {
-        song.sections.sorted { $0.order < $1.order }
+        (song.sections ?? []).sorted { $0.order < $1.order }
     }
 
     var body: some View {
@@ -477,6 +505,7 @@ struct ImageViewer: View {
 }
 
 struct ZoomableImageView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let image: UIImage
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
@@ -526,12 +555,12 @@ struct ZoomableImageView: View {
                 )
                 .onTapGesture(count: 2) {
                     withAnimation(.spring()) {
-                        if scale > 1 {
-                            scale = 1
+                        if scale > 1.0 {
+                            scale = 1.0
                             offset = .zero
                             lastOffset = .zero
                         } else {
-                            scale = 2
+                            scale = 2.0
                         }
                     }
                 }

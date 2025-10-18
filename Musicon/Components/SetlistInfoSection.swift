@@ -101,7 +101,7 @@ struct SetlistInfoSection: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "music.note.list")
                                     .font(.labelSmall)
-                                Text("\(setlist.items.count)곡")
+                                Text("\((setlist.items ?? []).count)곡")
                                     .font(.bodyLarge)
                                     .fontWeight(.medium)
                             }

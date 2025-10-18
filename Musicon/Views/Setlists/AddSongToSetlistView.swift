@@ -19,7 +19,7 @@ struct AddSongToSetlistView: View {
     @State private var selectedSongs: [Song.ID] = []
 
     var filteredSongs: [Song] {
-        let existingSongIDs = Set(setlist.items.compactMap { $0.originalSong?.id })
+        let existingSongIDs = Set((setlist.items ?? []).compactMap { $0.originalSong?.id })
 
         let availableSongs = allSongs.filter { !existingSongIDs.contains($0.id) }
 
@@ -170,19 +170,24 @@ struct AddSongToSetlistView: View {
 
     private func addSongs() {
         // 선택한 순서대로 곡 추가 (원곡 복제)
+        // 옵셔널 배열 초기화
+        if setlist.items == nil {
+            setlist.items = []
+        }
+
         for (index, songID) in selectedSongs.enumerated() {
             if let song = allSongs.first(where: { $0.id == songID }) {
                 // Song으로부터 데이터를 복제하여 SetlistItem 생성
-                let item = SetlistItem(order: setlist.items.count + index, cloneFrom: song)
+                let item = SetlistItem(order: (setlist.items?.count ?? 0) + index, cloneFrom: song)
                 item.setlist = setlist
 
                 // 섹션들의 관계 설정
-                for section in item.sections {
+                for section in (item.sections ?? []) {
                     section.setlistItem = item
                     modelContext.insert(section)
                 }
 
-                setlist.items.append(item)
+                setlist.items?.append(item)
                 modelContext.insert(item)
             }
         }

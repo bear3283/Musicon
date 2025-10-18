@@ -19,6 +19,7 @@ struct SheetMusicPageData: Identifiable {
 
 struct SetlistSheetMusicView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let setlist: Setlist
 
     @State private var currentPage = 0
@@ -27,7 +28,7 @@ struct SetlistSheetMusicView: View {
 
     // 모든 악보 이미지를 순서대로 수집
     var allSheetMusicData: [SheetMusicPageData] {
-        let sortedItems = setlist.items.sorted { $0.order < $1.order }
+        let sortedItems = (setlist.items ?? []).sorted { $0.order < $1.order }
         var result: [SheetMusicPageData] = []
 
         for item in sortedItems {
@@ -151,9 +152,10 @@ struct SetlistSheetMusicView: View {
             showPageIndicator = true
         }
 
-        // 2초 후 숨기기
+        // iPad: 3초, iPhone: 2초 후 숨기기
+        let hideDelay: UInt64 = horizontalSizeClass == .regular ? 3_000_000_000 : 2_000_000_000
         hideTask = Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            try? await Task.sleep(nanoseconds: hideDelay)
             if !Task.isCancelled {
                 withAnimation {
                     showPageIndicator = false
@@ -165,6 +167,8 @@ struct SetlistSheetMusicView: View {
 
 // 개별 악보 페이지 뷰
 struct SheetMusicPageView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     let item: SetlistItem
     let songOrder: Int
     let imageIndex: Int
@@ -179,7 +183,11 @@ struct SheetMusicPageView: View {
     @State private var lastOffset: CGSize = .zero
 
     var sortedSections: [SetlistItemSection] {
-        item.sections.sorted { $0.order < $1.order }
+        (item.sections ?? []).sorted { $0.order < $1.order }
+    }
+
+    var isIPad: Bool {
+        horizontalSizeClass == .regular
     }
 
     var body: some View {
@@ -189,16 +197,16 @@ struct SheetMusicPageView: View {
                 Color.black.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // 곡 정보 헤더
-                    VStack(spacing: 8) {
+                    // 곡 정보 헤더 - iPad에서 더 컴팩트하게
+                    VStack(spacing: isIPad ? 6 : 8) {
                         HStack {
                             Text("\(songOrder).")
-                                .font(.title3)
+                                .font(isIPad ? .title3 : .title3)
                                 .fontWeight(.bold)
                                 .foregroundStyle(.white)
 
                             Text(item.title)
-                                .font(.title3)
+                                .font(isIPad ? .title3 : .title3)
                                 .fontWeight(.semibold)
                                 .foregroundStyle(.white)
 
@@ -214,10 +222,10 @@ struct SheetMusicPageView: View {
                                     .clipShape(Capsule())
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, isIPad ? 20 : 16)
 
-                        // 곡 기본 정보
-                        HStack(spacing: 8) {
+                        // 곡 기본 정보 - iPad에서 한 줄로
+                        HStack(spacing: isIPad ? 12 : 8) {
                             if let key = item.key {
                                 Text(key)
                                     .font(.caption)
@@ -251,12 +259,38 @@ struct SheetMusicPageView: View {
                                     .clipShape(Capsule())
                             }
 
+                            // iPad에서는 구조를 같은 줄에 표시
+                            if isIPad && !sortedSections.isEmpty {
+                                Divider()
+                                    .frame(height: 20)
+                                    .background(.white.opacity(0.3))
+
+                                ForEach(Array(sortedSections.prefix(5).enumerated()), id: \.element.id) { index, section in
+                                    HStack(spacing: 3) {
+                                        Text(section.displayLabel)
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(.white.opacity(0.2))
+                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                                        if index < min(sortedSections.count, 5) - 1 {
+                                            Image(systemName: "arrow.right")
+                                                .font(.caption2)
+                                                .foregroundStyle(.white.opacity(0.6))
+                                        }
+                                    }
+                                }
+                            }
+
                             Spacer()
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, isIPad ? 20 : 16)
 
-                        // 곡 구조
-                        if !sortedSections.isEmpty {
+                        // iPhone에서는 구조를 별도 줄에 표시
+                        if !isIPad && !sortedSections.isEmpty {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 6) {
                                     ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
@@ -282,7 +316,7 @@ struct SheetMusicPageView: View {
                             }
                         }
                     }
-                    .padding(.vertical, 12)
+                    .padding(.vertical, isIPad ? 8 : 12)
                     .background(.ultraThinMaterial)
 
                     // 악보 이미지
@@ -346,21 +380,34 @@ struct SheetMusicPageView: View {
 }
 
 #Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Song.self, Setlist.self, SetlistItem.self, SetlistItemSection.self, configurations: config)
+    // Preview용 ModelConfiguration - CloudKit 비활성화
+    let schema = Schema([
+        Song.self,
+        SongSection.self,
+        Setlist.self,
+        SetlistItem.self,
+        SetlistItemSection.self
+    ])
+    let config = ModelConfiguration(
+        schema: schema,
+        isStoredInMemoryOnly: true
+        // cloudKitDatabase 명시적으로 제외 (Preview용)
+    )
+    let container = try! ModelContainer(for: schema, configurations: config)
 
     let song1 = Song(title: "Amazing Grace", tempo: 120, key: "C", timeSignature: "4/4")
     let song2 = Song(title: "How Great Thou Art", tempo: 100, key: "G", timeSignature: "4/4")
 
     let setlist = Setlist(title: "주일 예배", performanceDate: Date())
+    setlist.items = [] // 옵셔널 배열 초기화
 
     let item1 = SetlistItem(order: 0, cloneFrom: song1)
     item1.setlist = setlist
-    setlist.items.append(item1)
+    setlist.items?.append(item1)
 
     let item2 = SetlistItem(order: 1, cloneFrom: song2)
     item2.setlist = setlist
-    setlist.items.append(item2)
+    setlist.items?.append(item2)
 
     container.mainContext.insert(song1)
     container.mainContext.insert(song2)

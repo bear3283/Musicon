@@ -98,14 +98,19 @@ struct AddSectionView: View {
     }
 
     private func addSection() {
+        // 옵셔널 배열 초기화
+        if song.sections == nil {
+            song.sections = []
+        }
+
         let section = SongSection(
             type: selectedType,
-            order: song.sections.count,
+            order: song.sections?.count ?? 0,
             customLabel: customLabel.isEmpty ? nil : customLabel,
             customName: customName.isEmpty ? nil : customName
         )
         section.song = song
-        song.sections.append(section)
+        song.sections?.append(section)
 
         modelContext.insert(section)
         song.updatedAt = Date()

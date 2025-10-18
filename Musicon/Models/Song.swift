@@ -11,10 +11,11 @@ import UIKit
 
 @Model
 final class Song {
-    @Attribute(.unique) var id: UUID
-    var title: String
-    var createdAt: Date
-    var updatedAt: Date
+    // CloudKit 호환: .unique 제거, 기본값 추가
+    var id: UUID = UUID()
+    var title: String = ""
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
 
     // 음악 정보
     var tempo: Int?
@@ -24,13 +25,13 @@ final class Song {
 
     // 악보 이미지
     @Attribute(.externalStorage)
-    var sheetMusicImages: [Data]
+    var sheetMusicImages: [Data] = []
 
-    // 곡 구조
+    // 곡 구조 - CloudKit 호환: 관계는 옵셔널 배열로
     @Relationship(deleteRule: .cascade)
-    var sections: [SongSection]
+    var sections: [SongSection]?
 
-    // 관계 (SetlistItem에서 inverse 관리)
+    // 관계 (SetlistItem에서 inverse 관리) - CloudKit 호환: 관계는 옵셔널 배열로
     var setlistItems: [SetlistItem]?
 
     init(
@@ -42,7 +43,7 @@ final class Song {
         key: String? = nil,
         timeSignature: String? = nil,
         sheetMusicImages: [Data] = [],
-        sections: [SongSection] = []
+        sections: [SongSection]? = nil
     ) {
         self.id = id
         self.title = title

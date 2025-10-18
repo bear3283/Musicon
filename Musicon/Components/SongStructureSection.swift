@@ -18,7 +18,7 @@ struct SongStructureSection: View {
     @State private var deletingSection: SongSection?
 
     var sortedSections: [SongSection] {
-        song.sections.sorted { $0.order < $1.order }
+        (song.sections ?? []).sorted { $0.order < $1.order }
     }
 
     var body: some View {
@@ -83,32 +83,46 @@ struct SongStructureSection: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 32)
-            } else {
-                // 섹션 플로우 (자동 줄바꿈)
-                FlowLayout(spacing: Spacing.md) {
-                    ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
-                        HStack(spacing: Spacing.sm) {
-                            // 섹션 버튼 (박스 스타일, 색상 적용)
-                            Button {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    editingSection = section
-                                }
-                            } label: {
-                                Text(section.displayLabel)
-                                    .font(.callout)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(section.type.color)
-                                    .padding(.horizontal, Spacing.md)
-                                    .padding(.vertical, Spacing.sm)
-                                    .background(section.type.color.opacity(0.15))
-                                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(section.displayLabel)
-                            .accessibilityHint("섹션을 편집하려면 누르세요")
+            } else if isEditing {
+                // 편집 모드: List로 드래그앤드랍 가능
+                VStack(alignment: .leading, spacing: 8) {
+                    // 편집 모드 안내
+                    HStack(spacing: 6) {
+                        Image(systemName: "hand.draw")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("길게 눌러서 순서를 변경하세요")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 4)
 
-                            // 삭제 버튼 (편집 모드에서만, 섹션과 분리)
-                            if isEditing {
+                    List {
+                        ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
+                            HStack(spacing: Spacing.sm) {
+                                // 섹션 버튼 (박스 스타일, 색상 적용)
+                                Button {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        editingSection = section
+                                    }
+                                } label: {
+                                    let sectionColor = (section.type ?? .verse).color
+                                    Text(section.displayLabel)
+                                        .font(.callout)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(sectionColor)
+                                        .padding(.horizontal, Spacing.md)
+                                        .padding(.vertical, Spacing.sm)
+                                        .background(sectionColor.opacity(0.15))
+                                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(section.displayLabel)
+                                .accessibilityHint("섹션을 편집하려면 누르세요")
+
+                                Spacer()
+
+                                // 삭제 버튼
                                 Button {
                                     deletingSection = section
                                 } label: {
@@ -119,6 +133,38 @@ struct SongStructureSection: View {
                                 .buttonStyle(.plain)
                                 .accessibilityLabel("\(section.displayLabel) 섹션 삭제")
                             }
+                        }
+                        .onMove(perform: moveSection)
+                    }
+                    .listStyle(.plain)
+                    .frame(height: min(CGFloat(sortedSections.count * 52), 400))
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else {
+                // 일반 모드: 섹션 플로우 (자동 줄바꿈)
+                FlowLayout(spacing: Spacing.md) {
+                    ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
+                        HStack(spacing: Spacing.sm) {
+                            // 섹션 버튼 (박스 스타일, 색상 적용)
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    editingSection = section
+                                }
+                            } label: {
+                                let sectionColor = (section.type ?? .verse).color
+                                Text(section.displayLabel)
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(sectionColor)
+                                    .padding(.horizontal, Spacing.md)
+                                    .padding(.vertical, Spacing.sm)
+                                    .background(sectionColor.opacity(0.15))
+                                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(section.displayLabel)
+                            .accessibilityHint("섹션을 편집하려면 누르세요")
 
                             // 화살표 (마지막이 아닐 때)
                             if index < sortedSections.count - 1 {
@@ -170,8 +216,8 @@ struct SongStructureSection: View {
     }
 
     private func deleteSection(_ section: SongSection) {
-        if let index = song.sections.firstIndex(where: { $0.id == section.id }) {
-            song.sections.remove(at: index)
+        if let index = song.sections?.firstIndex(where: { $0.id == section.id }) {
+            song.sections?.remove(at: index)
             modelContext.delete(section)
 
             // 순서 재정렬
@@ -185,13 +231,18 @@ struct SongStructureSection: View {
     }
 
     private func addQuickSection(type: SectionType) {
+        // 옵셔널 배열 초기화
+        if song.sections == nil {
+            song.sections = []
+        }
+
         let section = SongSection(
             type: type,
-            order: song.sections.count,
+            order: song.sections?.count ?? 0,
             customLabel: nil
         )
         section.song = song
-        song.sections.append(section)
+        song.sections?.append(section)
 
         modelContext.insert(section)
         song.updatedAt = Date()
@@ -283,7 +334,7 @@ struct EditSectionLabelView: View {
                 Text("이 섹션을 삭제하시겠습니까?")
             }
             .onAppear {
-                selectedType = section.type
+                selectedType = section.type ?? .verse // 옵셔널 처리
                 customLabel = section.customLabel ?? ""
                 customName = section.customName ?? ""
             }
@@ -316,12 +367,12 @@ struct EditSectionLabelView: View {
             return
         }
 
-        if let index = song.sections.firstIndex(where: { $0.id == section.id }) {
-            song.sections.remove(at: index)
+        if let index = song.sections?.firstIndex(where: { $0.id == section.id }) {
+            song.sections?.remove(at: index)
             modelContext.delete(section)
 
             // 순서 재정렬
-            let sortedSections = song.sections.sorted { $0.order < $1.order }
+            let sortedSections = (song.sections ?? []).sorted { $0.order < $1.order }
             for (index, section) in sortedSections.enumerated() {
                 section.order = index
             }

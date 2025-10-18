@@ -68,24 +68,15 @@ struct SongDetailView: View {
 
             Divider()
 
-            // 곡 구조 + 악보 (2단)
-            HStack(alignment: .top, spacing: 24) {
-                // 왼쪽: 곡 구조
-                VStack(alignment: .leading, spacing: 12) {
-                    SongStructureSection(song: song, isEditing: $isEditing)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // 곡 구조 섹션 (전체 너비)
+            SongStructureSection(song: song, isEditing: $isEditing)
 
-                Divider()
+            Divider()
 
-                // 오른쪽: 악보
-                VStack(alignment: .leading, spacing: 12) {
-                    SheetMusicSection(song: song)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            // 악보 섹션 (전체 너비 - 크게 표시)
+            SheetMusicSection(song: song)
         }
-        .padding()
+        .padding(Spacing.xxl)
     }
 }
 

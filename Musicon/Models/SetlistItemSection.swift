@@ -10,12 +10,14 @@ import SwiftData
 
 @Model
 final class SetlistItemSection {
-    @Attribute(.unique) var id: UUID
-    var type: SectionType
-    var order: Int
+    // CloudKit 호환: .unique 제거, 기본값 추가
+    var id: UUID = UUID()
+    var type: SectionType? // CloudKit 호환: enum은 옵셔널로
+    var order: Int = 0
     var customLabel: String?
     var customName: String?
 
+    // CloudKit 호환: 관계는 옵셔널
     @Relationship(inverse: \SetlistItem.sections)
     var setlistItem: SetlistItem?
 
@@ -34,7 +36,8 @@ final class SetlistItemSection {
     }
 
     var displayLabel: String {
-        let baseName = type == .custom && customName != nil && !customName!.isEmpty ? customName! : type.rawValue
+        let actualType = type ?? .verse // 옵셔널 처리
+        let baseName = actualType == .custom && customName != nil && !customName!.isEmpty ? customName! : actualType.rawValue
 
         if let customLabel = customLabel, !customLabel.isEmpty {
             return "\(baseName)\(customLabel)"
@@ -45,7 +48,7 @@ final class SetlistItemSection {
     // SongSection으로부터 복제하는 편의 생성자
     convenience init(from songSection: SongSection) {
         self.init(
-            type: songSection.type,
+            type: songSection.type ?? .verse, // 옵셔널 처리
             order: songSection.order,
             customLabel: songSection.customLabel,
             customName: songSection.customName

@@ -10,9 +10,11 @@ import SwiftData
 
 @Model
 final class SetlistItem: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var order: Int
+    // CloudKit 호환: .unique 제거, 기본값 추가
+    var id: UUID = UUID()
+    var order: Int = 0
 
+    // CloudKit 호환: 관계는 옵셔널
     @Relationship(inverse: \Setlist.items)
     var setlist: Setlist?
 
@@ -21,19 +23,20 @@ final class SetlistItem: Identifiable {
     var originalSong: Song?
 
     // 복제된 곡 데이터 (콘티별로 독립적으로 수정 가능)
-    var title: String
+    // CloudKit 호환: 기본값 추가
+    var title: String = ""
     var key: String?
     var tempo: Int?
     var timeSignature: String?
     var notes: String?
 
-    // 복제된 악보 이미지
+    // 복제된 악보 이미지 - CloudKit 호환: 빈 배열 기본값
     @Attribute(.externalStorage)
-    var sheetMusicImages: [Data]
+    var sheetMusicImages: [Data] = []
 
-    // 복제된 곡 구조
+    // 복제된 곡 구조 - CloudKit 호환: 관계는 옵셔널 배열로
     @Relationship(deleteRule: .cascade)
-    var sections: [SetlistItemSection]
+    var sections: [SetlistItemSection]?
 
     init(
         id: UUID = UUID(),
@@ -45,7 +48,7 @@ final class SetlistItem: Identifiable {
         timeSignature: String? = nil,
         notes: String? = nil,
         sheetMusicImages: [Data] = [],
-        sections: [SetlistItemSection] = []
+        sections: [SetlistItemSection]? = nil
     ) {
         self.id = id
         self.order = order
@@ -62,7 +65,7 @@ final class SetlistItem: Identifiable {
     // Song으로부터 복제하는 편의 생성자
     convenience init(order: Int, cloneFrom song: Song) {
         // 섹션 복제
-        let clonedSections = song.sections.map { SetlistItemSection(from: $0) }
+        let clonedSections = (song.sections ?? []).map { SetlistItemSection(from: $0) }
 
         self.init(
             order: order,

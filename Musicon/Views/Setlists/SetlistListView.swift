@@ -57,11 +57,11 @@ struct SetlistListView: View {
 
         // 곡 수 필터
         if let minSongCount = minSongCount {
-            result = result.filter { $0.items.count >= minSongCount }
+            result = result.filter { ($0.items ?? []).count >= minSongCount }
         }
 
         if let maxSongCount = maxSongCount {
-            result = result.filter { $0.items.count <= maxSongCount }
+            result = result.filter { ($0.items ?? []).count <= maxSongCount }
         }
 
         return result
@@ -80,6 +80,8 @@ struct SetlistListView: View {
                     } description: {
                         Text("+ 버튼을 눌러 첫 콘티를 만들어보세요")
                     }
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Color.accentGold)
                 } else {
                     List {
                         ForEach(filteredSetlists) { setlist in
@@ -164,7 +166,7 @@ struct SetlistListView: View {
                 }
             } message: {
                 if let setlist = setlistToDelete {
-                    Text("'\(setlist.title)'을(를) 삭제하시겠습니까?\n포함된 \(setlist.items.count)곡의 정보도 함께 삭제됩니다.")
+                    Text("'\(setlist.title)'을(를) 삭제하시겠습니까?\n포함된 \((setlist.items ?? []).count)곡의 정보도 함께 삭제됩니다.")
                 }
             }
         }
@@ -176,7 +178,7 @@ struct SetlistRowView: View {
 
     var accessibilityDescription: String {
         var description = setlist.title
-        description += ", \(setlist.items.count)곡"
+        description += ", \((setlist.items ?? []).count)곡"
 
         if let date = setlist.performanceDate {
             let formatter = DateFormatter()
@@ -197,7 +199,7 @@ struct SetlistRowView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "music.note.list")
                         .font(.labelSmall)
-                    Text("\(setlist.items.count)곡")
+                    Text("\((setlist.items ?? []).count)곡")
                         .font(.labelMedium)
                 }
                 .foregroundStyle(Color.accentGold)

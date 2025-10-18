@@ -99,6 +99,8 @@ struct SongListView: View {
                     } description: {
                         Text("+ 버튼을 눌러 첫 곡을 추가해보세요")
                     }
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Color.accentGold)
                 } else {
                     List {
                         ForEach(filteredSongs) { song in
@@ -465,6 +467,7 @@ struct CreateSongView: View {
                             Button {
                                 editingSection = section
                             } label: {
+                                // TempSection의 type은 옵셔널이 아니므로 그대로 사용
                                 Text(section.displayLabel)
                                     .font(.callout)
                                     .fontWeight(.semibold)
@@ -695,16 +698,23 @@ struct CreateSongView: View {
         )
 
         // 섹션 추가
-        for tempSection in sortedSections {
-            let section = SongSection(
-                type: tempSection.type,
-                order: tempSection.order,
-                customLabel: tempSection.customLabel,
-                customName: tempSection.customName
-            )
-            section.song = song
-            song.sections.append(section)
-            modelContext.insert(section)
+        if !sortedSections.isEmpty {
+            // 옵셔널 배열 초기화
+            if song.sections == nil {
+                song.sections = []
+            }
+
+            for tempSection in sortedSections {
+                let section = SongSection(
+                    type: tempSection.type,
+                    order: tempSection.order,
+                    customLabel: tempSection.customLabel,
+                    customName: tempSection.customName
+                )
+                section.song = song
+                song.sections?.append(section)
+                modelContext.insert(section)
+            }
         }
 
         // 악보 추가

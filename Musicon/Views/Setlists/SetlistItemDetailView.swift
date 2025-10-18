@@ -17,7 +17,7 @@ struct SetlistItemDetailView: View {
     @State private var isEditing = true
 
     var sortedItems: [SetlistItem] {
-        item.setlist?.items.sorted { $0.order < $1.order } ?? []
+        (item.setlist?.items ?? []).sorted { $0.order < $1.order }
     }
 
     var currentOrder: Int {
@@ -184,123 +184,6 @@ struct SetlistItemOrderAndInfoSection: View {
     }
 }
 
-// 곡 정보 편집 섹션
-struct SetlistItemInfoSection: View {
-    @Environment(\.modelContext) private var modelContext
-    let item: SetlistItem
-    @Binding var isEditing: Bool
-
-    @State private var editedKey: String = "C"
-    @State private var editedTempo: Int = 120
-    @State private var editedTimeSignature: String = "4/4"
-
-    let keys = [
-        "C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B"
-    ]
-    let tempoOptions = Array(stride(from: 40, through: 200, by: 5))
-    let timeSignatures = ["4/4", "3/4", "6/8", "2/4", "5/4", "7/8", "12/8"]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("곡 정보")
-                .font(.titleMedium)
-
-            // 가로 배치된 피커 (곡 편집과 동일한 형태)
-            VStack(spacing: Spacing.lg) {
-                HStack(spacing: 0) {
-                    VStack(spacing: 4) {
-                        Text("코드")
-                            .font(.labelMedium)
-                            .foregroundStyle(Color.textSecondary)
-
-                        Picker("코드", selection: $editedKey) {
-                            ForEach(keys, id: \.self) { keyOption in
-                                Text(keyOption).tag(keyOption)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .labelsHidden()
-                        .tint(.accentGold)
-                        .onChange(of: editedKey) { _, _ in
-                            saveChanges()
-                        }
-                        .accessibilityLabel("코드")
-                        .accessibilityValue(editedKey)
-                        .accessibilityHint("이 콘티에서 사용할 코드를 선택하세요")
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    VStack(spacing: 4) {
-                        Text("템포 (BPM)")
-                            .font(.labelMedium)
-                            .foregroundStyle(Color.textSecondary)
-
-                        Picker("템포", selection: $editedTempo) {
-                            ForEach(tempoOptions, id: \.self) { bpm in
-                                Text("\(bpm)").tag(bpm)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .labelsHidden()
-                        .tint(.accentGold)
-                        .onChange(of: editedTempo) { _, _ in
-                            saveChanges()
-                        }
-                        .accessibilityLabel("템포")
-                        .accessibilityValue("\(editedTempo) BPM")
-                        .accessibilityHint("이 콘티에서 사용할 템포를 선택하세요")
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    VStack(spacing: 4) {
-                        Text("박자")
-                            .font(.labelMedium)
-                            .foregroundStyle(Color.textSecondary)
-
-                        Picker("박자", selection: $editedTimeSignature) {
-                            ForEach(timeSignatures, id: \.self) { signature in
-                                Text(signature).tag(signature)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .labelsHidden()
-                        .tint(.accentGold)
-                        .onChange(of: editedTimeSignature) { _, _ in
-                            saveChanges()
-                        }
-                        .accessibilityLabel("박자")
-                        .accessibilityValue(editedTimeSignature)
-                        .accessibilityHint("이 콘티에서 사용할 박자를 선택하세요")
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .padding(.horizontal, Spacing.sm)
-                .padding(.vertical, Spacing.md)
-                .frame(height: 120)
-                .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
-            }
-        }
-        .onAppear {
-            loadCurrentValues()
-        }
-    }
-
-    private func loadCurrentValues() {
-        editedKey = item.key ?? "C"
-        editedTempo = item.tempo ?? 120
-        editedTimeSignature = item.timeSignature ?? "4/4"
-    }
-
-    private func saveChanges() {
-        item.key = editedKey
-        item.tempo = editedTempo
-        item.timeSignature = editedTimeSignature
-        item.setlist?.updatedAt = Date()
-        try? modelContext.save()
-    }
-}
-
 // 콘티 메모 섹션
 struct SetlistItemNotesSection: View {
     @Environment(\.modelContext) private var modelContext
@@ -356,7 +239,7 @@ struct SetlistItemStructureSection: View {
     @State private var deletingSection: SetlistItemSection?
 
     var sortedSections: [SetlistItemSection] {
-        item.sections.sorted { $0.order < $1.order }
+        (item.sections ?? []).sorted { $0.order < $1.order }
     }
 
     var body: some View {
@@ -421,32 +304,46 @@ struct SetlistItemStructureSection: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 32)
-            } else {
-                // 섹션 플로우 (자동 줄바꿈)
-                FlowLayout(spacing: Spacing.md) {
-                    ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
-                        HStack(spacing: Spacing.sm) {
-                            // 섹션 버튼 (박스 스타일, 색상 적용)
-                            Button {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    editingSection = section
-                                }
-                            } label: {
-                                Text(section.displayLabel)
-                                    .font(.callout)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(section.type.color)
-                                    .padding(.horizontal, Spacing.md)
-                                    .padding(.vertical, Spacing.sm)
-                                    .background(section.type.color.opacity(0.15))
-                                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(section.displayLabel)
-                            .accessibilityHint("섹션을 편집하려면 누르세요")
+            } else if isEditing {
+                // 편집 모드: List로 드래그앤드랍 가능
+                VStack(alignment: .leading, spacing: 8) {
+                    // 편집 모드 안내
+                    HStack(spacing: 6) {
+                        Image(systemName: "hand.draw")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("길게 눌러서 순서를 변경하세요")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 4)
 
-                            // 삭제 버튼 (편집 모드에서만, 섹션과 분리)
-                            if isEditing {
+                    List {
+                        ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
+                            HStack(spacing: Spacing.sm) {
+                                // 섹션 버튼 (박스 스타일, 색상 적용)
+                                Button {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        editingSection = section
+                                    }
+                                } label: {
+                                    let sectionColor = (section.type ?? .verse).color
+                                    Text(section.displayLabel)
+                                        .font(.callout)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(sectionColor)
+                                        .padding(.horizontal, Spacing.md)
+                                        .padding(.vertical, Spacing.sm)
+                                        .background(sectionColor.opacity(0.15))
+                                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(section.displayLabel)
+                                .accessibilityHint("섹션을 편집하려면 누르세요")
+
+                                Spacer()
+
+                                // 삭제 버튼
                                 Button {
                                     deletingSection = section
                                 } label: {
@@ -457,6 +354,38 @@ struct SetlistItemStructureSection: View {
                                 .buttonStyle(.plain)
                                 .accessibilityLabel("\(section.displayLabel) 섹션 삭제")
                             }
+                        }
+                        .onMove(perform: moveSection)
+                    }
+                    .listStyle(.plain)
+                    .frame(height: min(CGFloat(sortedSections.count * 52), 400))
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else {
+                // 일반 모드: 섹션 플로우 (자동 줄바꿈)
+                FlowLayout(spacing: Spacing.md) {
+                    ForEach(Array(sortedSections.enumerated()), id: \.element.id) { index, section in
+                        HStack(spacing: Spacing.sm) {
+                            // 섹션 버튼 (박스 스타일, 색상 적용)
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    editingSection = section
+                                }
+                            } label: {
+                                let sectionColor = (section.type ?? .verse).color
+                                Text(section.displayLabel)
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(sectionColor)
+                                    .padding(.horizontal, Spacing.md)
+                                    .padding(.vertical, Spacing.sm)
+                                    .background(sectionColor.opacity(0.15))
+                                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(section.displayLabel)
+                            .accessibilityHint("섹션을 편집하려면 누르세요")
 
                             // 화살표 (마지막이 아닐 때)
                             if index < sortedSections.count - 1 {
@@ -494,9 +423,22 @@ struct SetlistItemStructureSection: View {
         }
     }
 
+    private func moveSection(from: IndexSet, to: Int) {
+        var sections = sortedSections
+        sections.move(fromOffsets: from, toOffset: to)
+
+        // 순서 재정렬
+        for (index, section) in sections.enumerated() {
+            section.order = index
+        }
+
+        item.setlist?.updatedAt = Date()
+        try? modelContext.save()
+    }
+
     private func deleteSection(_ section: SetlistItemSection) {
-        if let index = item.sections.firstIndex(where: { $0.id == section.id }) {
-            item.sections.remove(at: index)
+        if let index = item.sections?.firstIndex(where: { $0.id == section.id }) {
+            item.sections?.remove(at: index)
             modelContext.delete(section)
 
             // 순서 재정렬
@@ -510,14 +452,19 @@ struct SetlistItemStructureSection: View {
     }
 
     private func addQuickSection(type: SectionType) {
+        // 옵셔널 배열 초기화
+        if item.sections == nil {
+            item.sections = []
+        }
+
         let section = SetlistItemSection(
             type: type,
-            order: item.sections.count,
+            order: item.sections?.count ?? 0,
             customLabel: nil,
             customName: nil
         )
         section.setlistItem = item
-        item.sections.append(section)
+        item.sections?.append(section)
 
         modelContext.insert(section)
         item.setlist?.updatedAt = Date()
@@ -591,14 +538,19 @@ struct AddSetlistItemSectionView: View {
     }
 
     private func addSection() {
+        // 옵셔널 배열 초기화
+        if item.sections == nil {
+            item.sections = []
+        }
+
         let section = SetlistItemSection(
             type: .custom,
-            order: item.sections.count,
+            order: item.sections?.count ?? 0,
             customLabel: customLabel.isEmpty ? nil : customLabel,
             customName: customName.isEmpty ? nil : customName
         )
         section.setlistItem = item
-        item.sections.append(section)
+        item.sections?.append(section)
 
         modelContext.insert(section)
         item.setlist?.updatedAt = Date()
@@ -610,6 +562,7 @@ struct AddSetlistItemSectionView: View {
 
 // 콘티 아이템 악보 섹션
 struct SetlistItemSheetMusicSection: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let item: SetlistItem
 
     var body: some View {
@@ -622,18 +575,36 @@ struct SetlistItemSheetMusicSection: View {
                     .foregroundStyle(Color.textSecondary)
                     .font(.bodyMedium)
             } else {
-                VStack(spacing: Spacing.md) {
-                    ForEach(Array(item.sheetMusicImages.enumerated()), id: \.offset) { index, imageData in
-                        if let uiImage = UIImage(data: imageData) {
-                            Image(uiImage: uiImage)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxWidth: .infinity)
-                                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
-                                .shadow(radius: 2)
+                GeometryReader { geometry in
+                    ScrollView {
+                        VStack(spacing: Spacing.md) {
+                            ForEach(Array(item.sheetMusicImages.enumerated()), id: \.offset) { index, imageData in
+                                if let uiImage = UIImage(data: imageData) {
+                                    // 이미지 비율 계산
+                                    let imageAspectRatio = uiImage.size.width / uiImage.size.height
+                                    let availableWidth = geometry.size.width
+
+                                    // iPad에서 훨씬 더 크게 표시
+                                    let targetHeight: CGFloat = horizontalSizeClass == .regular ? 800 : 500
+                                    let calculatedWidth = targetHeight * imageAspectRatio
+
+                                    // 너비가 화면을 넘지 않도록 조정
+                                    let finalWidth = min(calculatedWidth, availableWidth)
+                                    let finalHeight = finalWidth / imageAspectRatio
+
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: finalWidth, height: finalHeight)
+                                        .frame(maxWidth: .infinity)
+                                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
+                                        .shadow(radius: 2)
+                                }
+                            }
                         }
                     }
                 }
+                .frame(height: horizontalSizeClass == .regular ? 850 : 550)
             }
         }
     }
@@ -723,7 +694,7 @@ struct EditSetlistItemSectionLabelView: View {
                 Text("이 섹션을 삭제하시겠습니까?")
             }
             .onAppear {
-                selectedType = section.type
+                selectedType = section.type ?? .verse // 옵셔널 처리
                 customLabel = section.customLabel ?? ""
                 customName = section.customName ?? ""
             }
@@ -756,12 +727,12 @@ struct EditSetlistItemSectionLabelView: View {
             return
         }
 
-        if let index = item.sections.firstIndex(where: { $0.id == section.id }) {
-            item.sections.remove(at: index)
+        if let index = item.sections?.firstIndex(where: { $0.id == section.id }) {
+            item.sections?.remove(at: index)
             modelContext.delete(section)
 
             // 순서 재정렬
-            let sortedSections = item.sections.sorted { $0.order < $1.order }
+            let sortedSections = (item.sections ?? []).sorted { $0.order < $1.order }
             for (index, section) in sortedSections.enumerated() {
                 section.order = index
             }
